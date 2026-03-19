@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { Send, AlertCircle, Plus, X, History, Shield, Globe } from 'lucide-react';
-import api from '../services/api';
+import aiPlatformApi from '../services/aiPlatformApi';
 import Button from '../components/common/Button';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import VoiceInput from '../components/features/VoiceInput';
@@ -64,17 +64,24 @@ const SymptomChecker = () => {
 
     setLoading(true);
     try {
-      const response = await api.post('/symptoms/analyze', { symptoms: fullSymptoms });
-      setAnalysis(response.data.analysis);
+      // Use new AI Platform backend API
+      const result = await aiPlatformApi.analyzeSymptoms(fullSymptoms, null, language);
       
-      // Save to search history
-      storageService.addToSearchHistory({
-        symptoms: fullSymptoms,
-        type: 'symptom',
-        timestamp: new Date().toISOString(),
-      });
-      
-      toast.success('Analysis complete!');
+      if (result.success && result.data.analysis) {
+        setAnalysis(result.data.analysis);
+        
+        // Save to search history
+        storageService.addToSearchHistory({
+          symptoms: fullSymptoms,
+          type: 'symptom',
+          result: result.data.analysis,
+          timestamp: new Date().toISOString(),
+        });
+        
+        toast.success('✅ Analysis complete! Check the results below.');
+      } else {
+        toast.error(result.error || 'Analysis failed');
+      }
     } catch (error) {
       console.error('Symptom analysis error:', error);
       toast.error('Failed to analyze symptoms. Please try again.');

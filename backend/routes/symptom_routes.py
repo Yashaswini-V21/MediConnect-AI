@@ -1,16 +1,17 @@
 from flask import Blueprint, request, jsonify
 from utils.ai_provider import RuleBasedProvider
 from models.user_model import db, SearchHistory
+from models.symptom_analyzer import get_symptom_analyzer
 from utils.analytics import analytics
-from utils.azure_translator_service import translate_to_kannada, translate_list
 import logging
 import time
 
 symptom_bp = Blueprint('symptoms', __name__)
 logger = logging.getLogger(__name__)
 
-# Initialize rule-based provider for symptom analysis
+# Initialize analyzers
 provider = RuleBasedProvider()
+analyzer = get_symptom_analyzer()
 
 @symptom_bp.route('/analyze', methods=['POST'])
 def analyze_symptoms():
@@ -94,44 +95,17 @@ def list_symptoms():
 def search_symptoms():
     """Search symptoms by keyword"""
     try:
-        query = request.args.get('q', '').lower().strip()
+        query = request.args.get('q', '').strip()
+        limit = int(request.args.get('limit', 10))
         
         if not query:
             return jsonify({'error': 'Search query required'}), 400
         
-        # Common symptoms list
-        all_symptoms = [
-            'chest pain', 'headache', 'fever', 'breathing difficulty', 'cough',
-            'cold', 'stomach pain', 'nausea', 'dizzy', 'fatigue', 'weak',
-            'sore throat', 'vomit', 'pain', 'migraine', 'asthma', 'diabetes',
-            'blood pressure', 'heart', 'flu', 'skin issue'
-        ]
-        
-        # Filter by query
-        results = [s for s in all_symptoms if query in s.lower()]
-        
-        return jsonify({
-            'success': True,
-            'results': results,
-            'total': len(results)
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error searching symptoms: {e}")
-        return jsonify({'error': str(e)}), 500
-    try:
-        query = request.args.get('q', '')
-        limit = int(request.args.get('limit', 10))
-        
-        if not query:
-            return jsonify({'error': 'Search query is required'}), 400
-        
-        analyzer = get_symptom_analyzer()
+        # Use analyzer's search functionality
         results = analyzer.search_symptoms(query, limit)
         
         return jsonify({
             'success': True,
-            'query': query,
             'results': results,
             'total': len(results)
         }), 200
@@ -144,7 +118,6 @@ def search_symptoms():
 def get_symptom_details(symptom_id):
     """Get detailed information about a specific symptom"""
     try:
-        analyzer = get_symptom_analyzer()
         symptom = analyzer.get_symptom_by_id(symptom_id)
         
         if not symptom:
@@ -156,20 +129,32 @@ def get_symptom_details(symptom_id):
         }), 200
         
     except Exception as e:
+        logger.error(f"Error getting symptom details: {e}")
         return jsonify({'error': str(e)}), 500
 
 @symptom_bp.route('/categories', methods=['GET'])
 def get_categories():
-    """Get all symptom categories"""
+    """Get all unique symptom categories"""
     try:
-        categories = analyzer.symptoms_data.get('categories', [])
+        all_symptoms = analyzer.get_all_symptoms()
+        
+        # Extract unique specialties/categories
+        categories = set()
+        for symptom in all_symptoms:
+            specs = symptom.get('specialties', [])
+            if isinstance(specs, list):
+                categories.update(specs)
+        
+        categories_list = sorted(list(categories))
         
         return jsonify({
             'success': True,
-            'categories': categories
+            'categories': categories_list,
+            'total': len(categories_list)
         }), 200
         
     except Exception as e:
+        logger.error(f"Error getting categories: {e}")
         return jsonify({'error': str(e)}), 500
 
 @symptom_bp.route('/emergency-check', methods=['POST'])
@@ -182,24 +167,26 @@ def check_emergency():
             return jsonify({'error': 'Symptoms description is required'}), 400
         
         symptoms_text = data['symptoms']
-        language = data.get('language', 'english')
+        language = data.get('language', 'en')
         
-        # Analyze symptoms
-        analysis_result = analyzer.analyze_symptoms(symptoms_text, language)
+        # Analyze symptoms using analyzer
+        analysis_result = analyzer.analyze(symptoms_text, language)
         
-        # Check if emergency
-        is_emergency = analysis_result['requires_emergency']
-        urgency_level = analysis_result['urgency_level']
+        # Determine if emergency based on urgency level
+        is_emergency = analysis_result.get('urgency_level') == 'HIGH'
+        urgency_level = analysis_result.get('urgency_level', 'MEDIUM')
         
         return jsonify({
             'success': True,
             'is_emergency': is_emergency,
             'urgency_level': urgency_level,
-            'urgency_score': analysis_result['urgency_score'],
+            'urgency_score': analysis_result.get('urgency_score', 5),
             'message': 'Seek immediate medical attention' if is_emergency else 'Consult a doctor soon',
-            'first_aid': analysis_result['first_aid_tips'],
-            'red_flags': analysis_result['red_flags']
+            'first_aid': analysis_result.get('first_aid_tips', []),
+            'red_flags': analysis_result.get('red_flags', []),
+            'specialties': analysis_result.get('recommended_specialties', [])
         }), 200
         
     except Exception as e:
+        logger.error(f"Error checking emergency: {e}")
         return jsonify({'error': str(e)}), 500

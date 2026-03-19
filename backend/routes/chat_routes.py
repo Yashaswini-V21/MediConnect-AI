@@ -4,7 +4,6 @@ Rule-based health assistant with multilingual support (no external API calls)
 """
 from flask import Blueprint, request, jsonify
 from utils.ai_provider import RuleBasedProvider
-from utils.azure_translator_service import translate_to_kannada, translate_to_english
 import logging
 
 logger = logging.getLogger(__name__)
@@ -39,21 +38,9 @@ def doctor_chat():
         # Get response from rule-based provider
         response = provider.get_health_advice(message)
         
-        # Translate to Kannada if needed
-        response_kn = None
-        if language == 'kannada':
-            try:
-                response_kn = translate_to_kannada(response)
-            except Exception as e:
-                logger.warning(f"Kannada translation failed: {str(e)}")
-                response_kn = response  # Fallback to English
-        else:
-            response_kn = response
-        
         return jsonify({
             'success': True,
             'response': response,
-            'response_kn': response_kn,
             'language': language
         })
     
@@ -98,18 +85,10 @@ def quick_advice():
         if not advice:
             advice = "For any health concern, it's best to consult with a healthcare professional for proper diagnosis and treatment."
         
-        # Translate if needed
-        advice_kn = None
-        if language == 'kannada':
-            try:
-                advice_kn = translate_to_kannada(advice)
-            except:
-                advice_kn = advice
-        
         return jsonify({
             'success': True,
             'advice': advice,
-            'advice_kn': advice_kn if advice_kn else advice
+            'language': language
         })
     
     except Exception as e:

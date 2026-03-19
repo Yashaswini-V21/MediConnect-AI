@@ -86,12 +86,19 @@ class RuleBasedProvider:
             'chest': 'Cardiologist',
             'heart': 'Cardiologist',
             'breathing': 'Pulmonologist',
+            'asthma': 'Pulmonologist',
             'fever': 'General Physician',
             'headache': 'Neurologist',
+            'migraine': 'Neurologist',
             'stomach': 'Gastroenterologist',
+            'nausea': 'Gastroenterologist',
+            'vomit': 'Gastroenterologist',
             'pain': 'General Physician',
             'skin': 'Dermatologist',
             'mental': 'Psychiatrist',
+            'joint': 'Orthopedist',
+            'cough': 'Pulmonologist',
+            'cold': 'General Physician',
         }
         
         specialties = []
@@ -102,9 +109,42 @@ class RuleBasedProvider:
         if not specialties:
             specialties = ['General Physician']
         
+        # Map urgency to score
+        urgency_score_map = {'HIGH': 8, 'MEDIUM': 5, 'LOW': 2}
+        urgency_score = urgency_score_map.get(urgency, 5)
+        
+        # First aid tips based on symptoms
+        first_aid_tips = []
+        if 'fever' in text_lower:
+            first_aid_tips.extend(['Stay hydrated', 'Rest well', 'Monitor temperature regularly'])
+        if 'pain' in text_lower or 'headache' in text_lower:
+            first_aid_tips.extend(['Rest in quiet environment', 'Apply cold compress'])
+        if 'cough' in text_lower or 'cold' in text_lower:
+            first_aid_tips.extend(['Drink warm fluids', 'Use steam inhalation', 'Rest'])
+        if 'nausea' in text_lower or 'vomit' in text_lower:
+            first_aid_tips.extend(['Eat light meals', 'Stay hydrated with ORS', 'Rest'])
+        
+        if not first_aid_tips:
+            first_aid_tips = ['Rest and monitor symptoms', 'Stay hydrated', 'Maintain a healthy diet']
+        
+        # Red flags based on high urgency
+        red_flags = []
+        if urgency == 'HIGH':
+            if 'chest' in text_lower or 'heart' in text_lower:
+                red_flags.append('Call emergency services if chest pain persists or worsens')
+            if 'breathing' in text_lower:
+                red_flags.append('Seek immediate medical attention for severe breathing difficulty')
+            if 'bleeding' in text_lower:
+                red_flags.append('Apply direct pressure to stop bleeding and seek emergency care')
+        
         return {
             'urgency': urgency,
+            'urgency_score': urgency_score,
             'specialties': specialties[:3],
-            'explanation': f"Based on your symptoms, this appears to be a {urgency.lower()} priority issue. Please consult with a healthcare professional for proper evaluation."
+            'explanation': f"Based on your symptoms, this appears to be a {urgency.lower()} priority issue. Please consult with a healthcare professional for proper evaluation.",
+            'first_aid_tips': first_aid_tips[:5],
+            'red_flags': red_flags,
+            'matched_symptoms': [symptoms_text[:50]],
+            'ai_powered': False
         }
 

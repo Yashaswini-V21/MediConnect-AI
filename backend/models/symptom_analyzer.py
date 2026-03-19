@@ -4,7 +4,6 @@ import re
 import os
 from datetime import datetime
 import logging
-from utils.azure_openai_service import analyze_symptoms_with_azure_ai
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -68,46 +67,9 @@ class SymptomAnalyzer:
             logger.warning("Empty text provided for analysis")
             return self._empty_result()
         
-        # Try Azure OpenAI first for intelligent analysis
-        ai_result = None
-        try:
-            logger.info("Attempting Azure OpenAI analysis...")
-            ai_result = analyze_symptoms_with_azure_ai(cleaned_text)
-            if ai_result:
-                logger.info(f"Azure OpenAI analysis successful: urgency={ai_result.get('urgency')}")
-        except Exception as e:
-            logger.warning(f"Azure OpenAI analysis failed, falling back to rule-based: {e}")
+        # Use rule-based local analysis (no external API calls needed)
+        logger.info("Performing local rule-based analysis...")
         
-        # If AI analysis succeeded, combine with rule-based first aid
-        if ai_result and ai_result.get('urgency'):
-            # Match symptoms for first aid tips
-            matched_symptoms = self._match_symptoms(cleaned_text, language)
-            
-            # Map AI urgency to score
-            urgency_map = {'HIGH': 9, 'MEDIUM': 5, 'LOW': 2}
-            urgency_score = urgency_map.get(ai_result['urgency'], 5)
-            
-            # Collect first aid and red flags from rule-based system
-            first_aid = self._collect_first_aid(matched_symptoms) if matched_symptoms else ['Rest and monitor symptoms', 'Stay hydrated']
-            red_flags = self._collect_red_flags(matched_symptoms) if matched_symptoms else []
-            
-            result = {
-                'urgency_level': ai_result['urgency'],
-                'urgency_score': urgency_score,
-                'matched_symptoms': [s['name'] for s in matched_symptoms] if matched_symptoms else [],
-                'recommended_specialties': ai_result.get('specialties', ['General Medicine']),
-                'recommendation': ai_result.get('explanation', 'Please consult a healthcare professional.'),
-                'first_aid_tips': first_aid,
-                'red_flags': red_flags,
-                'ai_powered': True,
-                'timestamp': datetime.utcnow().isoformat()
-            }
-            
-            logger.info(f"AI-powered analysis complete: Urgency={ai_result['urgency']}, Specialties={ai_result.get('specialties')}")
-            return result
-        
-        # Fallback to rule-based analysis
-        logger.info("Using rule-based analysis")
         # Match symptoms
         matched_symptoms = self._match_symptoms(cleaned_text, language)
         
