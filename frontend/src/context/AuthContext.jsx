@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { authHelpers } from '../services/supabaseClient';
+import { authHelpers } from '../services/firebaseClient';
 
 export const AuthContext = createContext();
 
@@ -9,23 +9,35 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
 
   useEffect(() => {
-    // Get initial session
-    authHelpers.getSession().then(({ session }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    let isMounted = true;
+
+    authHelpers.getSession().then(({ session: initialSession }) => {
+      if (!isMounted) return;
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = authHelpers.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = authHelpers.onAuthStateChange((event, nextSession) => {
+      if (!isMounted) return;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      if (event !== 'TOKEN_REFRESHED') {
+        setLoading(false);
+      }
     });
 
     return () => {
+      isMounted = false;
       subscription?.unsubscribe();
     };
   }, []);
+
+  const handleSignOut = async () => {
+    await authHelpers.signOut();
+    setUser(null);
+    setSession(null);
+  };
 
   const value = {
     user,
@@ -33,11 +45,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     signUp: authHelpers.signUp,
     signIn: authHelpers.signIn,
-    signOut: async () => {
-      await authHelpers.signOut();
-      setUser(null);
-      setSession(null);
-    }
+    signOut: handleSignOut,
+    logout: handleSignOut
   };
 
   return (

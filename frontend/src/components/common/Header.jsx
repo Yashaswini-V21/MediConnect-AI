@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Heart, Menu, Bell, LogOut } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import LanguageToggle from '../features/LanguageToggle';
@@ -9,6 +8,7 @@ import ThemeToggle from './ThemeToggle';
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const displayName = user?.displayName || user?.email;
 
   const handleLogout = () => {
     logout();
@@ -65,7 +65,7 @@ const Header = () => {
                 </div>
                 <Link to="/profile">
                   <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center font-semibold text-white text-sm cursor-pointer hover:bg-purple-700 transition-colors">
-                    {(user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
+                    {(displayName || 'U').charAt(0).toUpperCase()}
                   </div>
                 </Link>
                 <button 

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { UserPlus, Mail, Lock, User, ArrowLeft, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { authHelpers } from '../../services/supabaseClient';
+import { useAuth } from '../../hooks/useAuth';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +14,7 @@ const Signup = () => {
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signUp } = useAuth();
 
   const handleChange = (e) => {
     setFormData({
@@ -53,23 +54,25 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      // Sign up with Supabase
-      const { data, error } = await authHelpers.signUp(
+      const { data, error } = await signUp(
         formData.email,
         formData.password,
         formData.full_name
       );
 
       if (error) {
-        toast.error(error.message || 'Signup failed');
+        const debugMessage = error.code
+          ? `${error.message} (${error.code})`
+          : (error.message || 'Signup failed');
+        toast.error(debugMessage);
         return;
       }
 
       if (data) {
-        toast.success('Account created! Please check your email to verify your account.');
+        toast.success('Account created successfully!');
         setTimeout(() => {
           navigate('/login');
-        }, 2000);
+        }, 1000);
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -305,13 +308,13 @@ const Signup = () => {
           className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6"
         >
           By signing up, you agree to our{' '}
-          <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">
+          <Link to="/terms" className="text-blue-600 dark:text-blue-400 hover:underline">
             Terms of Service
-          </a>{' '}
+          </Link>{' '}
           and{' '}
-          <a href="#" className="text-blue-600 hover:underline">
+          <Link to="/privacy" className="text-blue-600 hover:underline">
             Privacy Policy
-          </a>
+          </Link>
         </motion.p>
       </motion.div>
     </div>

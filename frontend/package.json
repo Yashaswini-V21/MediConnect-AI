@@ -24,8 +24,8 @@
   "private": true,
   "dependencies": {
     "@react-google-maps/api": "^2.19.2",
-    "@supabase/supabase-js": "^2.89.0",
     "axios": "^1.6.2",
+    "firebase": "^11.7.3",
     "framer-motion": "^10.16.16",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.300.0",

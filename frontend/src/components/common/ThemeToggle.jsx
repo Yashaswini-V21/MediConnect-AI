@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -52,8 +52,5 @@ const ThemeToggle = () => {
     </motion.button>
   );
 };
-
-// Add AnimatePresence import
-import { AnimatePresence } from 'framer-motion';
 
 export default ThemeToggle;

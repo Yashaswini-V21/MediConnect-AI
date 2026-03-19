@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogIn, Mail, Lock, ArrowLeft } from 'lucide-react';
-import Button from '../common/Button';
 import toast from 'react-hot-toast';
-import { authHelpers } from '../../services/supabaseClient';
+import { useAuth } from '../../hooks/useAuth';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -13,6 +12,7 @@ const Login = () => {
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signIn } = useAuth();
 
   const handleChange = (e) => {
     setFormData({
@@ -32,13 +32,16 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await authHelpers.signIn(
+      const { data, error } = await signIn(
         formData.email,
         formData.password
       );
 
       if (error) {
-        toast.error(error.message || 'Login failed');
+        const debugMessage = error.code
+          ? `${error.message} (${error.code})`
+          : (error.message || 'Login failed');
+        toast.error(debugMessage);
         return;
       }
 

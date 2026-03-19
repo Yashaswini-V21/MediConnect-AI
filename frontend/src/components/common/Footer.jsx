@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, Github, Twitter, Linkedin, Phone, Mail, MapPin, Shield, Clock } from 'lucide-react';
+import { Github, Twitter, Linkedin, Phone, Mail, MapPin, Shield } from 'lucide-react';
 import Logo from './Logo';
 
 const Footer = () => {
@@ -130,10 +130,10 @@ const Footer = () => {
                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm p-3 rounded-full transition-all hover:scale-110">
               <Github className="w-6 h-6 text-white" />
             </a>
-            <a href="#" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm p-3 rounded-full transition-all hover:scale-110">
+            <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm p-3 rounded-full transition-all hover:scale-110">
               <Twitter className="w-6 h-6 text-white" />
             </a>
-            <a href="#" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm p-3 rounded-full transition-all hover:scale-110">
+            <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm p-3 rounded-full transition-all hover:scale-110">
               <Linkedin className="w-6 h-6 text-white" />
             </a>
           </div>

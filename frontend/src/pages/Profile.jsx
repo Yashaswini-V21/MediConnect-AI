@@ -53,7 +53,7 @@ const Profile = () => {
       return JSON.parse(saved);
     }
     return {
-      fullName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
+      fullName: user?.displayName || user?.email?.split('@')[0] || 'User',
       email: user?.email || '',
       age: '25',
       bloodGroup: 'O+',

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { authHelpers } from './firebaseClient';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -11,8 +12,19 @@ const api = axios.create({
 
 // Add auth token to requests
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
+  async (config) => {
+    let token = null;
+
+    try {
+      token = await authHelpers.getIdToken();
+    } catch (error) {
+      token = null;
+    }
+
+    if (!token) {
+      token = localStorage.getItem('token');
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -11,6 +11,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('symptoms');
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const displayName = user?.displayName || user?.email;
 
   const tabs = [
     { id: 'symptoms', label: 'Symptom Checker', icon: Activity },
@@ -44,10 +45,10 @@ const Dashboard = () => {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
                 <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center font-semibold text-white text-sm">
-                  {(user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
+                  {(displayName || 'U').charAt(0).toUpperCase()}
                 </div>
                 <span className="text-sm font-medium text-slate-900 dark:text-white hidden sm:inline">
-                  {user?.user_metadata?.full_name || user?.email}
+                  {displayName}
                 </span>
               </div>
               <button
