@@ -19,6 +19,7 @@ from routes.symptom_routes import symptom_bp
 from routes.hospital_routes import hospital_bp
 from routes.appointment_routes import appointment_bp
 from routes.chat_routes import chat_bp
+from routes.ai_platform_routes import ai_platform_bp
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -94,6 +95,7 @@ app.register_blueprint(symptom_bp, url_prefix='/api/symptoms')
 app.register_blueprint(hospital_bp, url_prefix='/api/hospitals')
 app.register_blueprint(appointment_bp, url_prefix='/api/appointments')
 app.register_blueprint(chat_bp, url_prefix='/api/chat')
+app.register_blueprint(ai_platform_bp, url_prefix='/api/ai')
 
 # ============================================
 # CREATE DATABASE TABLES

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Mic, MicOff, Bot, User, Volume2, Loader } from 'lucide-react';
 import { LanguageContext } from '../../context/LanguageContext';
 import api from '../../services/api';
+import aiPlatformApi from '../../services/aiPlatformApi';
 import toast from 'react-hot-toast';
 
 const AIDoctorBot = () => {
@@ -31,89 +32,33 @@ const AIDoctorBot = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Initialize Web Speech API
+  // Initialize Web Speech API for fallback
   useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;  // Keep listening
-      recognitionRef.current.interimResults = true;
-      
-      let finalTranscript = '';
-      let silenceTimer = null;
-
-      recognitionRef.current.onstart = () => {
-        // Voice recognition started
-      };
-
-      recognitionRef.current.onresult = (event) => {
-        
-        let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.isFinal) {
-            finalTranscript += result[0].transcript + ' ';
-          } else {
-            interimTranscript += result[0].transcript;
-          }
-        }
-        
-        const transcript = (finalTranscript + interimTranscript).trim();
-        setInputText(transcript);
-        
-        // Auto-stop after 2 seconds of silence
-        if (silenceTimer) clearTimeout(silenceTimer);
-        silenceTimer = setTimeout(() => {
-          if (recognitionRef.current) {
-            recognitionRef.current.stop();
-          }
-        }, 2000);
-      };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error('❌ Chatbot voice error:', event.error);
-        setIsListening(false);
-        if (silenceTimer) clearTimeout(silenceTimer);
-        
-        if (event.error === 'not-allowed' || event.error === 'permission-denied') {
-          toast.error('Microphone permission denied. Click 🔒 icon in address bar to allow.');
-        } else if (event.error === 'no-speech') {
-          toast.error('Speak louder and closer to your microphone!');
-        } else if (event.error !== 'aborted' && event.error !== 'network') {
-          toast.error('Voice input failed: ' + event.error);
-        }
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-        if (silenceTimer) clearTimeout(silenceTimer);
-        finalTranscript = '';
-      };
-      
-    } else {
-      console.error('Speech recognition not supported in this browser');
-    }
+    // Removed - now using backend voice APIs
+    // Old Web Speech API code no longer needed
   }, []);
 
-  const toggleVoiceInput = () => {
-    if (!recognitionRef.current) {
-      toast.error('Voice input not supported. Please use Chrome browser.');
-      return;
-    }
-
+  const toggleVoiceInput = async () => {
     if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      try {
-        recognitionRef.current.lang = language === 'kannada' ? 'kn-IN' : 'en-IN';
-        recognitionRef.current.start();
-        setIsListening(true);
-        toast.success(language === 'kannada' ? 'ಮಾತನಾಡಿ...' : 'Speak now...', { duration: 2000 });
-      } catch (err) {
-        console.error('Failed to start voice recognition:', err);
-        toast.error('Failed to start voice input. Please check microphone permissions.');
+      // Stop voice input
+      const stopResult = await aiPlatformApi.stopVoiceInput();
+      if (stopResult.success && stopResult.transcript) {
+        setInputText(stopResult.transcript);
         setIsListening(false);
+        toast.success('✅ Transcript: ' + stopResult.transcript);
+      } else {
+        setIsListening(false);
+        toast.error(stopResult.error || 'Failed to stop voice input');
+      }
+    } else {
+      // Start voice input
+      const langCode = language === 'kannada' ? 'kn-IN' : 'en-US';
+      const startResult = await aiPlatformApi.startVoiceInput(langCode);
+      if (startResult.success) {
+        setIsListening(true);
+        toast.success(language === 'kannada' ? '🎤 ಮಾತನಾಡಿ...' : '🎤 Speak now...');
+      } else {
+        toast.error(startResult.error || 'Failed to start voice input');
       }
     }
   };
@@ -133,7 +78,7 @@ const AIDoctorBot = () => {
     setIsLoading(true);
 
     try {
-      // Call Azure OpenAI through backend
+      // Call chat endpoint
       const response = await api.post('/chat/doctor', {
         message: inputText,
         language: language,
@@ -143,24 +88,29 @@ const AIDoctorBot = () => {
         }))
       });
 
+      const botText = language === 'kannada' ? (response.data.response_kn || response.data.response) : response.data.response;
+      
       const botMessage = {
         id: Date.now() + 1,
         type: 'bot',
-        text: response.data.response,
-        textKn: response.data.response_kn,
+        text: botText,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, botMessage]);
 
-      // Optional: Text-to-speech
-      if (response.data.response && 'speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(
-          language === 'kannada' ? response.data.response_kn : response.data.response
-        );
-        utterance.lang = language === 'kannada' ? 'kn-IN' : 'en-IN';
-        utterance.rate = 0.9;
-        window.speechSynthesis.speak(utterance);
+      // Use backend TTS if available
+      const langCode = language === 'kannada' ? 'kn-IN' : 'en-US';
+      const speakResult = await aiPlatformApi.speakResponse(botText, langCode);
+      
+      if (!speakResult.success) {
+        // Fallback to browser TTS if backend TTS fails
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(botText);
+          utterance.lang = language === 'kannada' ? 'kn-IN' : 'en-US';
+          utterance.rate = 0.9;
+          window.speechSynthesis.speak(utterance);
+        }
       }
 
     } catch (error) {
@@ -168,8 +118,9 @@ const AIDoctorBot = () => {
       const errorMessage = {
         id: Date.now() + 1,
         type: 'bot',
-        text: 'Sorry, I encountered an error. Please try again.',
-        textKn: 'ಕ್ಷಮಿಸಿ, ನಾನು ದೋಷವನ್ನು ಎದುರಿಸಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+        text: language === 'kannada' 
+          ? 'ಕ್ಷಮಿಸಿ, ನಾನು ದೋಷವನ್ನು ಎದುರಿಸಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.'
+          : 'Sorry, I encountered an error. Please try again.',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
