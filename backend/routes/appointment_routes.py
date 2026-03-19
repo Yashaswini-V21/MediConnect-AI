@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 import json
 import os
 import logging
+from utils.auth_middleware import require_auth, get_authenticated_user_id
 
 appointment_bp = Blueprint('appointments', __name__)
 logger = logging.getLogger(__name__)
@@ -34,11 +34,11 @@ def save_appointments(appointments):
         return False
 
 @appointment_bp.route('/book', methods=['POST'])
-@jwt_required()
+@require_auth()
 def book_appointment():
     """Book a new appointment"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         data = request.get_json()
         
         # Validate required fields
@@ -87,11 +87,11 @@ def book_appointment():
         return jsonify({'error': str(e)}), 500
 
 @appointment_bp.route('/my-appointments', methods=['GET'])
-@jwt_required()
+@require_auth()
 def get_my_appointments():
     """Get all appointments for the current user"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         
         # Load all appointments
         all_appointments = load_appointments()
@@ -113,11 +113,11 @@ def get_my_appointments():
         return jsonify({'error': str(e)}), 500
 
 @appointment_bp.route('/<appointment_id>', methods=['GET'])
-@jwt_required()
+@require_auth()
 def get_appointment(appointment_id):
     """Get a specific appointment by ID"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         
         # Load all appointments
         appointments = load_appointments()
@@ -142,11 +142,11 @@ def get_appointment(appointment_id):
         return jsonify({'error': str(e)}), 500
 
 @appointment_bp.route('/<appointment_id>/cancel', methods=['PUT'])
-@jwt_required()
+@require_auth()
 def cancel_appointment(appointment_id):
     """Cancel an appointment"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         
         # Load all appointments
         appointments = load_appointments()
