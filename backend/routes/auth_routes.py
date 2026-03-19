@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token
 from models.user_model import db, User, SearchHistory, Favorite
 from utils.email_sender import email_sender
 from utils.analytics import analytics
+from utils.auth_middleware import require_auth, get_authenticated_user_id
 from datetime import timedelta
 import re
 import logging
@@ -213,10 +214,10 @@ def login():
         return jsonify({'error': str(e)}), 500
 
 @auth_bp.route('/me', methods=['GET'])
-@jwt_required()
+@require_auth()
 def get_current_user():
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         user = User.query.get(user_id)
         
         if not user:
@@ -229,10 +230,10 @@ def get_current_user():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @auth_bp.route('/profile', methods=['GET'])
-@jwt_required()
+@require_auth()
 def get_profile():
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         user = User.query.get(user_id)
         
         if not user:
@@ -245,10 +246,10 @@ def get_profile():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @auth_bp.route('/profile', methods=['PUT'])
-@jwt_required()
+@require_auth()
 def update_profile():
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         user = User.query.get(user_id)
         
         if not user:
@@ -283,10 +284,10 @@ def update_profile():
         return jsonify({'error': str(e)}), 500
 
 @auth_bp.route('/search-history', methods=['GET'])
-@jwt_required()
+@require_auth()
 def get_search_history():
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         history = SearchHistory.query.filter_by(user_id=user_id)\
             .order_by(SearchHistory.timestamp.desc())\
             .limit(20).all()
@@ -300,10 +301,10 @@ def get_search_history():
         return jsonify({'error': str(e)}), 500
 
 @auth_bp.route('/search-history', methods=['POST'])
-@jwt_required()
+@require_auth()
 def add_search_history():
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         data = request.get_json()
         
         if not data.get('symptoms'):
@@ -332,10 +333,10 @@ def add_search_history():
         return jsonify({'error': str(e)}), 500
 
 @auth_bp.route('/favorites', methods=['GET'])
-@jwt_required()
+@require_auth()
 def get_favorites():
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         favorites = Favorite.query.filter_by(user_id=user_id)\
             .order_by(Favorite.added_at.desc()).all()
         
@@ -348,10 +349,10 @@ def get_favorites():
         return jsonify({'error': str(e)}), 500
 
 @auth_bp.route('/favorites', methods=['POST'])
-@jwt_required()
+@require_auth()
 def add_favorite():
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         data = request.get_json()
         
         if not data.get('hospital_id'):
@@ -387,10 +388,10 @@ def add_favorite():
         return jsonify({'error': str(e)}), 500
 
 @auth_bp.route('/favorites/<int:favorite_id>', methods=['DELETE'])
-@jwt_required()
+@require_auth()
 def remove_favorite(favorite_id):
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         favorite = Favorite.query.filter_by(id=favorite_id, user_id=user_id).first()
         
         if not favorite:
@@ -409,10 +410,10 @@ def remove_favorite(favorite_id):
         return jsonify({'error': str(e)}), 500
 
 @auth_bp.route('/change-password', methods=['POST'])
-@jwt_required()
+@require_auth()
 def change_password():
     try:
-        user_id = get_jwt_identity()
+        user_id = get_authenticated_user_id()
         user = User.query.get(user_id)
         
         if not user:

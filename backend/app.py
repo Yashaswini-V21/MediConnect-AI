@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, verify_jwt_in_request, get_jwt_identity
+from flask_jwt_extended import JWTManager
 from datetime import timedelta, datetime
 import os
 import logging
 from dotenv import load_dotenv
+from utils.auth_middleware import get_authenticated_user_id
 
 # Load environment variables
 load_dotenv()
@@ -240,8 +241,7 @@ def analyze_symptoms():
         
         # Save to search history if user is logged in
         try:
-            verify_jwt_in_request(optional=True)
-            user_id = get_jwt_identity()
+            user_id = get_authenticated_user_id(optional=True)
             
             if user_id:
                 history_entry = SearchHistory(
@@ -736,8 +736,7 @@ def combined_search():
         
         # Save to search history if user is logged in
         try:
-            verify_jwt_in_request(optional=True)
-            user_id = get_jwt_identity()
+            user_id = get_authenticated_user_id(optional=True)
             
             if user_id:
                 history_entry = SearchHistory(
