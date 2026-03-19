@@ -229,6 +229,64 @@ def get_current_user():
         logger.error(f"Get current user error: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+@auth_bp.route('/firebase-sync', methods=['POST'])
+@require_auth()
+def sync_firebase_profile():
+    """Sync authenticated Firebase user profile data into local backend user record."""
+    try:
+        user_id = get_authenticated_user_id()
+        user = User.query.get(user_id)
+
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        data = request.get_json(silent=True) or {}
+        updated_fields = []
+
+        full_name = (data.get('full_name') or data.get('display_name') or '').strip()
+        phone = (data.get('phone') or '').strip()
+        preferred_language = (data.get('preferred_language') or '').strip()
+        email = (data.get('email') or '').strip().lower()
+
+        if full_name and full_name != user.full_name:
+            user.full_name = full_name
+            updated_fields.append('full_name')
+
+        if phone and phone != (user.phone or ''):
+            user.phone = phone
+            updated_fields.append('phone')
+
+        if preferred_language and preferred_language != (user.preferred_language or 'en'):
+            user.preferred_language = preferred_language
+            updated_fields.append('preferred_language')
+
+        if email and email != user.email:
+            existing = User.query.filter_by(email=email).first()
+            if existing and existing.id != user.id:
+                return jsonify({
+                    'success': False,
+                    'message': 'Email already exists for another account'
+                }), 409
+            user.email = email
+            updated_fields.append('email')
+
+        if updated_fields:
+            db.session.commit()
+            logger.info(f"Synced Firebase profile for user {user_id}: {', '.join(updated_fields)}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Profile synced successfully',
+            'updated_fields': updated_fields,
+            'user': user.to_dict()
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Firebase profile sync error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @auth_bp.route('/profile', methods=['GET'])
 @require_auth()
 def get_profile():
