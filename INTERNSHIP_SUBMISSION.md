@@ -307,10 +307,8 @@ healthbridge-ai/
 │
 ├── docs/
 │   ├── API_DOCUMENTATION.md        # Complete API reference
-│   ├── API_DOCUMENTATION.md        # REST API reference
 │   ├── DEPLOYMENT.md               # Deployment guide
-│   ├── PROJECT_STATUS.md           # Current status
-│   └── DEPLOYMENT.md               # Setup instructions
+│   └── PROJECT_STATUS.md           # Current status
 │
 ├── README.md                       # Project overview
 ├── INTERNSHIP_SUBMISSION.md        # This file
@@ -326,8 +324,7 @@ healthbridge-ai/
 ### Prerequisites
 - Node.js 16+ and npm
 - Python 3.10+
-- Azure OpenAI API credentials
-- Azure Translator API credentials
+- No API keys required. Fully offline capable.
 
 ### Quick Start
 
@@ -343,7 +340,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Configure environment variables
-# Create backend/.env with Azure AI credentials
+# Create backend/.env with required environment variables
 
 # Frontend Setup
 cd ../frontend
@@ -361,14 +358,10 @@ npm start
 
 ### Environment Configuration
 
-Required Azure AI credentials in `backend/.env`:
+Required environment variables in `backend/.env`:
 ```env
-AZURE_OPENAI_KEY=your_azure_openai_key
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
-AZURE_TRANSLATOR_KEY=your_azure_translator_key
-AZURE_TRANSLATOR_LOCATION=global
-JWT_SECRET_KEY=your_secret_key
+JWT_SECRET_KEY=your_secret
+FLASK_SECRET_KEY=your_flask_secret
 ```
 
 ---
@@ -404,11 +397,11 @@ JWT_SECRET_KEY=your_secret_key
 
 ---
 
-### 3. AI Symptom Checker - Azure OpenAI Integration
+### 3. AI Symptom Checker - Local Rule-Based AI Analysis
 ![Symptom Checker](public/3-symptom-checker.png)
 
 **AI/ML Features Demonstrated:**
-- **Azure OpenAI Integration**: "Describe your symptoms and get instant AI-powered analysis"
+- **Local Rule-Based AI Analysis**: "Describe your symptoms and get instant AI-powered analysis"
 - Quick-select common symptoms with emoji icons:
   - 🤒 Fever
   - 🤕 Headache  
@@ -492,7 +485,7 @@ JWT_SECRET_KEY=your_secret_key
    - Handled edge cases and improved accuracy through testing
 
 2. **Machine Learning Integration**
-   - Integrated pre-trained LLMs in production environment
+   - Built explainable rule-based expert system
    - Implemented real-time AI inference with optimization
    - Built hybrid AI + rules system for reliability
 
@@ -514,7 +507,7 @@ JWT_SECRET_KEY=your_secret_key
 ### Technical Achievements
 
 ✅ **100% Feature Completion** - All planned features implemented  
-✅ **AI Integration** - Successfully integrated 2 Azure AI services  
+✅ **AI Integration** - Built local rule-based AI system with zero external API dependencies  
 ✅ **Performance** - <2 second response time for AI analysis  
 ✅ **Accuracy** - 92% symptom triage accuracy  
 ✅ **Scalability** - Supports 100K+ analyses per month  

@@ -7,6 +7,8 @@ import logging
 from typing import Optional, Callable, Dict, Any
 from enum import Enum
 import threading
+import pyttsx3
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,20 @@ class VoiceOutputAssistant:
         self.progress_callback: Optional[Callable] = None
         self.complete_callback: Optional[Callable] = None
         self.error_callback: Optional[Callable] = None
+        
+        # Initialize TTS Engine safely
+        try:
+            self.engine = pyttsx3.init()
+            # Set properties
+            self.engine.setProperty('rate', 150)    # Speed
+            self.engine.setProperty('volume', 0.9)  # Volume
+            # Set default voice
+            voices = self.engine.getProperty('voices')
+            if voices:
+                self.engine.setProperty('voice', voices[0].id)
+        except Exception as e:
+            logger.error(f"TTS Engine initialization failed: {e}")
+            self.engine = None
     
     def speak(
         self,
@@ -252,27 +268,34 @@ class VoiceOutputAssistant:
         }
     
     def _speak_async(self, text: str, language: str) -> None:
-        """Async speech synthesis (simulated)"""
+        """Async speech synthesis using pyttsx3 with background thread safety"""
+        if not self.engine:
+            self._handle_error("TTS Engine not available")
+            return
+
         try:
-            # Simulate speech output with character-by-character progress
-            char_count = 0
-            for i, char in enumerate(text):
-                if self.is_interrupted:
-                    logger.info("Speech interrupted during async processing")
-                    break
-                
-                # Progress callback every 5 chars
-                if i % 5 == 0 and self.progress_callback:
-                    try:
-                        self.progress_callback(i)
-                    except Exception as e:
-                        logger.error(f"Progress callback error: {e}")
-                
-                # Simulate speech delay
-                import time
-                time.sleep(0.05)
-                char_count = i
+            # Configure language-specific voice if available
+            voices = self.engine.getProperty('voices')
+            if language == 'kn-IN':
+                # Attempt to find a Kannada voice
+                kannada_voice = next((v for v in voices if 'kn' in v.languages or 'Kannada' in v.name), None)
+                if kannada_voice:
+                    self.engine.setProperty('voice', kannada_voice.id)
+            else:
+                # English voice
+                english_voice = next((v for v in voices if 'en' in v.languages or 'English' in v.name), None)
+                if english_voice:
+                    self.engine.setProperty('voice', english_voice.id)
+
+            # Start the speech engine loop
+            # Note: engine.runAndWait() is blocking, which is why we are in a thread
+            self.engine.say(text)
             
+            # Start loop in a way we can check interrupted
+            # pyttsx3 doesn't have a great "stop" if inside say(), 
+            # but we can try ending the loop if possible
+            self.engine.runAndWait()
+
             if not self.is_interrupted:
                 self._set_state(VoiceOutputState.IDLE)
                 if self.complete_callback:
@@ -280,10 +303,8 @@ class VoiceOutputAssistant:
                         self.complete_callback()
                     except Exception as e:
                         logger.error(f"Complete callback error: {e}")
-                logger.info(f"Speech completed: {char_count} chars processed")
             
             self.is_speaking = False
-        
         except Exception as e:
             error_msg = f"Speech synthesis error: {str(e)}"
             logger.error(error_msg)

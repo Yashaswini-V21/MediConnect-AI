@@ -45,15 +45,13 @@ except ImportError as e:
 # ============================================
 print("\n[APP] Verifying backend utilities...")
 utilities = [
-    "triage_pipeline.py",
-    "safety_guardrails.py",
-    "unified_voice_engine.py",
+    "ai_provider.py",
     "voice_output_assistant.py",
-    "smart_maps_router.py",
-    "emergency_voice_triage_flow.py",
-    "reliability_metrics.py",
-    "bilingual_benchmark.py",
-    "healthcare_ai_platform.py"
+    "unified_voice_engine.py",
+    "advanced_voice_assistant.py",
+    "triage_pipeline.py",
+    "distance_calculator.py",
+    "safety_guardrails.py"
 ]
 
 utils_dir = BACKEND_DIR / "utils"
@@ -116,22 +114,25 @@ sys.path.insert(0, str(BACKEND_DIR))
 try:
     from utils.triage_pipeline import get_triage_pipeline
     print("[OK] Triage Pipeline imports")
-    
+
     from utils.safety_guardrails import create_safety_gate
     print("[OK] Safety Guardrails imports")
-    
+
     from utils.unified_voice_engine import get_voice_engine
     print("[OK] Voice Engine imports")
-    
+
     from utils.voice_output_assistant import get_voice_output_assistant
     print("[OK] Voice Output imports")
-    
-    from utils.smart_maps_router import get_smart_router
-    print("[OK] Smart Router imports")
-    
-    from utils.healthcare_ai_platform import create_healthcare_ai_platform
-    print("[OK] Healthcare AI Platform imports")
-    
+
+    from utils.ai_provider import RuleBasedProvider
+    print("[OK] AI Provider imports")
+
+    from utils.distance_calculator import calculate_distance, get_nearby_hospitals
+    print("[OK] Distance Calculator imports")
+
+    from utils.advanced_voice_assistant import get_advanced_voice_assistant
+    print("[OK] Advanced Voice Assistant imports")
+
 except ImportError as e:
     print(f"[ERR] Import error: {e}")
     sys.exit(1)
@@ -143,22 +144,32 @@ print("\n[RUN] Instantiating components...")
 try:
     triage = get_triage_pipeline()
     print(f"[OK] Triage Pipeline instantiated")
-    
+
     safety_gate = create_safety_gate(triage)
     print(f"[OK] Safety Gate instantiated")
-    
+
     voice_engine = get_voice_engine()
     print(f"[OK] Voice Engine instantiated")
-    
+
     voice_output = get_voice_output_assistant()
     print(f"[OK] Voice Output Assistant instantiated")
-    
-    router = get_smart_router()
-    print(f"[OK] Smart Router instantiated")
-    
-    platform = create_healthcare_ai_platform(triage, safety_gate, voice_engine, voice_output, router, None)
-    print(f"[OK] Healthcare AI Platform instantiated")
-    
+
+    ai_provider = RuleBasedProvider()
+    print(f"[OK] AI Provider (RuleBasedProvider) instantiated")
+
+    test_dist = calculate_distance((12.9716, 77.6412), (13.0827, 80.2707))
+    print(f"[OK] Distance Calculator works ({test_dist:.1f} km)")
+
+    advanced_voice = get_advanced_voice_assistant(
+        voice_engine=voice_engine,
+        voice_output=voice_output,
+        triage_pipeline=triage,
+        emergency_flow=None,
+        hospital_matcher=None,
+        safety_gate=safety_gate
+    )
+    print(f"[OK] Advanced Voice Assistant instantiated")
+
 except Exception as e:
     print(f"[ERR] Component instantiation error: {e}")
     sys.exit(1)

@@ -1,6 +1,6 @@
-# Contributing to HealthBridge AI
+# Contributing to  MediConnect-AI
 
-First off, thank you for considering contributing to HealthBridge AI! 🎉
+First off, thank you for considering contributing to MediConnect-AI! 🎉
 
 This project is a **capstone project** for the **IBM SkillBuild AIML Internship** in partnership with **Edunet Foundation**. While this is primarily an internship project, we welcome feedback and suggestions from the community.
 
@@ -82,13 +82,13 @@ Areas where you can contribute:
 
 2. **Clone your fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/mediconnect-ai.git
-   cd mediconnect-ai
+   git clone https://github.com/YOUR_USERNAME/healthbridge-ai.git
+   cd healthbridge-ai
    ```
 
 3. **Add upstream remote**
    ```bash
-   git remote add upstream https://github.com/Yashaswini-V21/mediconnect-ai.git
+   git remote add upstream https://github.com/Yashaswini-V21/healthbridge-ai.git
    ```
 
 4. **Install dependencies**
@@ -396,8 +396,8 @@ Add screenshots for UI changes
 If you have questions about contributing:
 
 1. Check existing [documentation](docs/)
-2. Search [closed issues](https://github.com/Yashaswini-V21/mediconnect-ai/issues?q=is%3Aissue+is%3Aclosed)
-3. Open a [new issue](https://github.com/Yashaswini-V21/mediconnect-ai/issues/new) with the "question" label
+2. Search [closed issues](https://github.com/Yashaswini-V21/healthbridge-ai/issues?q=is%3Aissue+is%3Aclosed)
+3. Open a [new issue](https://github.com/Yashaswini-V21/healthbridge-ai/issues/new) with the "question" label
 
 ---
 
@@ -411,7 +411,7 @@ Your contributions help make healthcare more accessible. Every contribution, no 
 
 <div align="center">
 
-**MediConnect AI** - Microsoft Imagine Cup 2026
+**HealthBridge AI** - IBM SkillBuild AIML Internship
 
 Made with 💙 by the community, for better healthcare access
 
