@@ -1,5 +1,5 @@
 """
-LangGraph Diagnostic Agent for HealthBridge AI / MediConnect 2.0
+LangGraph Diagnostic Agent for MediConnect-AI
 
 Five-node graph:
   SymptomParser → TriageEngine → SpecialistMatcher → HospitalRouter → ResponseGenerator → END
