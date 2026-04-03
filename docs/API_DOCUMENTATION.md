@@ -1,26 +1,37 @@
-# 📡 MediConnect AI - API Documentation
+# 📡 MediConnect-AI - API Documentation
 
 ## API Overview
 
-MediConnect AI provides a RESTful API for healthcare navigation, symptom analysis, and hospital matching.
+MediConnect-AI provides a comprehensive RESTful API for healthcare navigation, AI-powered symptom analysis, hospital matching, and ML-enhanced urgency prediction.
 
 **Base URL**: `http://localhost:5000/api`  
 **Production URL**: `https://mediconnect-ai.com/api` (when deployed)
 
-**API Version**: v1.0  
-**Last Updated**: December 24, 2025
+**API Version**: v1.5 (M2.5 - ML Classifier Added)  
+**Last Updated**: April 3, 2026
+
+---
+
+## 🆕 What's New in M2.5
+
+| Feature | Change | Status |
+|---------|--------|--------|
+| ML Urgency Prediction | Added RandomForest classifier | ✅ Complete |
+| Confidence Scoring | Probabilistic outputs | ✅ Complete |
+| Enhanced Analysis | ML + rule-based hybrid approach | ✅ Complete |
+| Feature Importance | Coming in next release | 📅 M4 |
 
 ---
 
 ## 🔐 Authentication
 
-MediConnect AI uses JWT (JSON Web Tokens) for authentication.
+MediConnect-AI uses JWT (JSON Web Tokens) for authentication.
 
 ### Authentication Flow:
-1. User signs up or logs in
-2. Server returns a JWT token
+1. User signs up or logs in via `/api/auth/signup` or `/api/auth/login`
+2. Server returns a JWT token (valid for 7 days)
 3. Client includes token in subsequent requests
-4. Token expires after 7 days
+4. Token expires and requires re-login
 
 ### Including Auth Token:
 ```http
@@ -32,10 +43,11 @@ Authorization: Bearer <your-jwt-token>
 ## 📚 API Endpoints
 
 ### Table of Contents:
-1. [Authentication](#authentication-endpoints)
-2. [Symptom Analysis](#symptom-analysis-endpoints)
-3. [Hospital Matching](#hospital-matching-endpoints)
-4. [User Profile](#user-profile-endpoints)
+1. [Authentication](#-authentication-endpoints)
+2. [Symptom Analysis (M2)](#-symptom-analysis-endpoints)
+3. [Hospital Matching](#-hospital-matching-endpoints)
+4. [ML Predictions (M2.5)](#-ml-predictions-endpoints)
+5. [User Profile](#-user-profile-endpoints)
 
 ---
 
@@ -45,7 +57,7 @@ Authorization: Bearer <your-jwt-token>
 
 **Endpoint**: `POST /api/auth/signup`
 
-**Description**: Create a new user account
+**Description**: Create a new user account with email/password
 
 **Request Body**:
 ```json
@@ -66,7 +78,7 @@ Authorization: Bearer <your-jwt-token>
     "id": 1,
     "name": "John Doe",
     "email": "john.doe@example.com",
-    "created_at": "2025-12-24T10:30:00Z"
+    "created_at": "2026-04-03T10:30:00Z"
   }
 }
 ```
@@ -604,6 +616,178 @@ Authorization: Bearer <token>
     },
     // ... more hospitals
   ]
+}
+```
+
+---
+
+## 🤖 ML Predictions Endpoints (M2.5)
+
+### 1. Get ML Urgency Prediction
+
+**Endpoint**: `POST /api/health/predict-urgency`
+
+**Description**: Use trained ML classifier to predict urgency level with confidence scores
+
+**Request Headers**:
+```http
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+```
+
+**Request Body**:
+```json
+{
+  "symptom_severity": 0.85,
+  "is_cardiac": 1,
+  "is_emergency_sign": 0,
+  "has_chronic_disease": 1,
+  "multiple_symptoms": 0,
+  "age_above_60": 0,
+  "pregnant": 0,
+  "recent_surgery": 0,
+  "on_medication": 1,
+  "immune_compromised": 0
+}
+```
+
+**Response** (Success - 200):
+```json
+{
+  "success": true,
+  "model": "RandomForest (M2.5)",
+  "prediction": {
+    "urgency": "MEDIUM",
+    "confidence": 0.847,
+    "urgency_scores": {
+      "HIGH": 0.12,
+      "MEDIUM": 0.847,
+      "LOW": 0.033
+    }
+  },
+  "recommendation": "Schedule appointment with specialist within 24 hours",
+  "model_version": "1.0",
+  "inference_time_ms": 34
+}
+```
+
+**Response** (Invalid input - 400):
+```json
+{
+  "success": false,
+  "error": "Invalid feature dimensions. Expected 10 features, got 8"
+}
+```
+
+---
+
+### 2. Analyze Symptoms + ML Prediction (Hybrid)
+
+**Endpoint**: `POST /api/symptoms/analyze-with-ml`
+
+**Description**: Combines rule-based analysis (M1-M2) with ML prediction (M2.5) for comprehensive diagnosis
+
+**Request Headers**:
+```http
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+```
+
+**Request Body**:
+```json
+{
+  "symptoms": ["chest pain", "shortness of breath", "fatigue"],
+  "duration_days": 2,
+  "severity": "high",
+  "age": 45,
+  "medical_history": ["hypertension", "diabetes"],
+  "language": "en"
+}
+```
+
+**Response** (Success - 200):
+```json
+{
+  "success": true,
+  "analysis": {
+    "rule_based": {
+      "urgency": "HIGH",
+      "matched_conditions": [
+        {
+          "condition": "Acute Coronary Syndrome",
+          "match_score": 0.92
+        },
+        {
+          "condition": "Pulmonary Embolism",
+          "match_score": 0.68
+        }
+      ],
+      "primary_specialists": ["Cardiology", "Emergency Medicine"],
+      "recommendation": "SEEK EMERGENCY CARE IMMEDIATELY"
+    },
+    "ml_enhanced": {
+      "ml_urgency": "HIGH",
+      "ml_confidence": 0.956,
+      "ml_reasoning": "High cardiac risk + emergency signs + multiple critical symptoms"
+    }
+  },
+  "hospitals": [
+    {
+      "name": "Apollo Hospital",
+      "distance_km": 2.3,
+      "specialties": ["Cardiology", "Emergency Medicine", "ICU"],
+      "availability": true
+    },
+    {
+      "name": "Fortis Hospital",
+      "distance_km": 3.1,
+      "specialties": ["Cardiology", "Pulmonology", "Emergency Medicine"],
+      "availability": true
+    }
+  ],
+  "emergency_routing": true,
+  "call_ambulance": true,
+  "nearest_emergency": "Apollo Hospital (2.3 km, ETA 5 min)"
+}
+```
+
+---
+
+### 3. Get Model Info (M2.5)
+
+**Endpoint**: `GET /api/health/model-info`
+
+**Description**: Get information about the deployed ML classifier
+
+**Response** (Success - 200):
+```json
+{
+  "success": true,
+  "model": {
+    "name": "MediConnect ML Classifier (M2.5)",
+    "type": "RandomForest",
+    "version": "1.0",
+    "trained_date": "2026-04-03",
+    "accuracy": 0.9969,
+    "precision": 0.9969,
+    "recall": 0.9969,
+    "f1_score": 0.9969
+  },
+  "training": {
+    "samples": 1620,
+    "features": 10,
+    "classes": ["HIGH", "MEDIUM", "LOW"],
+    "class_distribution": {
+      "HIGH": 665,
+      "MEDIUM": 415,
+      "LOW": 540
+    }
+  },
+  "performance": {
+    "inference_time_ms": "30-50",
+    "confidence_calibration": "Good",
+    "emergency_sensitivity": 0.95
+  }
 }
 ```
 

@@ -10,7 +10,7 @@
 | **Intern Name** | Yashaswini V |
 | **Program** | IBM SkillBuild - Artificial Intelligence & Machine Learning Internship |
 | **Partner Organization** | Edunet Foundation |
-| **Project Title** | HealthBridge AI - AI-Powered Healthcare Navigation Platform |
+| **Project Title** | MediConnect-AI - AI-Powered Healthcare Navigation Platform |
 | **Project Type** | Capstone Project |
 | **Submission Date** | January 2026 |
 | **Project Duration** | 8-12 weeks |
@@ -19,7 +19,7 @@
 
 ## 🎯 Project Overview
 
-**HealthBridge AI** is an intelligent healthcare navigation platform that demonstrates practical application of artificial intelligence and machine learning in the healthcare domain. The project showcases comprehensive AI/ML skills learned during the IBM SkillBuild internship, with a focus on:
+**MediConnect-AI** is an intelligent healthcare navigation platform that demonstrates practical application of artificial intelligence and machine learning in the healthcare domain. The project showcases comprehensive AI/ML skills learned during the IBM SkillBuild internship, with a focus on:
 
 - **Natural Language Processing (NLP)** for symptom analysis and text understanding
 - **Rule-Based AI Systems** for deterministic medical decision-making
@@ -246,7 +246,7 @@ Preventive Health, Nutrition, Mental Health, Sleep Health, Exercise, Chronic Dis
 ## 📁 Project Structure
 
 ```
-healthbridge-ai/
+MediConnect-AI/
 ├── backend/
 │   ├── app.py                      # Flask application entry point
 │   ├── config.py                   # Configuration management
@@ -330,8 +330,8 @@ healthbridge-ai/
 
 ```bash
 # Clone the repository
-git clone https://github.com/Yashaswini-V21/healthbridge-ai.git
-cd healthbridge-ai
+git clone https://github.com/Yashaswini-V21/MediConnect-AI.git
+cd MediConnect-AI
 
 # Backend Setup
 cd backend
@@ -581,14 +581,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Intern:** Yashaswini V  
 **Program:** IBM SkillBuild AIML Internship  
 **Partner:** Edunet Foundation  
-**Project:** HealthBridge AI - Healthcare Navigation Platform  
+**Project:** MediConnect-AI - Healthcare Navigation Platform  
 **Submission Date:** January 2026
 
 ---
 
 <div align="center">
 
-### HealthBridge AI
+### MediConnect-AI
 **AI-Powered Healthcare Navigation Platform**
 
 *IBM SkillBuild & Edunet Foundation*  

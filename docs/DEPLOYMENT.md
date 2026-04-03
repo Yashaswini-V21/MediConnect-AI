@@ -1,46 +1,46 @@
-# 🚀 Deployment Guide - HealthBridge AI
+# 🚀 Deployment Guide - MediConnect-AI
 
 **IBM SkillBuild & Edunet Foundation AIML Internship Capstone Project**
 
-**Status**: ✅ Development Complete - Ready for Local Deployment  
-**Last Updated**: January 28, 2026
+**Status**: 🔄 M2.5 In Progress - ML Classifier Trained  
+**Last Updated**: April 3, 2026  
+**Target Launch**: Q2 2026
 
 ---
 
 ## 📋 Overview
 
-This guide covers local deployment and setup of HealthBridge AI for internship project demonstration and evaluation.
+This guide covers local development, testing, and production deployment of MediConnect-AI for the internship capstone evaluation and eventual production launch.
 
-### Local Development Architecture
+### Architecture Stack
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   LOCAL DEVELOPMENT STACK                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Frontend (React)          Backend (Flask)                  │
-│  ├─ localhost:3000         ├─ localhost:5000                 │
-│  ├─ React 18.2              ├─ Flask 3.0                      │
-│  └─ Tailwind CSS           └─ Azure AI Integration           │
-│                                                              │
-│  Database: SQLite (46 hospitals, 55 symptoms)              │
-│  AI Services: Azure OpenAI + Azure Translator              │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                   MEDICONNECT-AI FULL STACK                          │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  Frontend                Backend                  AI/ML Layer         │
+│  ├─ localhost:3000       ├─ localhost:5000      ├─ Groq LLaMA       │
+│  ├─ React 18             ├─ Flask 3.0           ├─ LangGraph (5-node)├
+│  ├─ Tailwind CSS         ├─ SQLAlchemy ORM      ├─ Bhashini API      │
+│  └─ Recharts             ├─ Firebase Admin      └─ RandomForest ML   │
+│                          └─ Gunicorn                                  │
+│                                                                       │
+│  Database:  SQLite (dev) / PostgreSQL (prod)                         │
+│  ML Models: Scikit-learn (92% accuracy) + LangGraph agent            │
+│  Analytics: Real-time metrics pipeline + dashboards                  │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## 🎯 Recommended Platforms
 
 ### Frontend Deployment: **Vercel** (Primary) or **Netlify** (Alternative)
 
 **Why Vercel?**
 - ✅ Zero-config React deployment
 - ✅ Automatic HTTPS
-- ✅ Global CDN
+- ✅ Global CDN  
 - ✅ CI/CD with GitHub integration
-- ✅ Free tier sufficient for competition
+- ✅ Free tier sufficient for early launch
 - ✅ Serverless functions support
 
 ### Backend Deployment: **Render** (Primary) or **Railway** (Alternative)
@@ -51,53 +51,123 @@ This guide covers local deployment and setup of HealthBridge AI for internship p
 - ✅ Built-in SSL certificates
 - ✅ Environment variable management
 - ✅ Health checks and auto-restart
-- ✅ Simple Flask deployment
+- ✅ Simple Flask/Gunicorn deployment
 
 ---
 
-## 🔧 Part 1: Backend Deployment (Render)
+## 🔧 Part 1: Local Development Setup
 
-### Step 1: Prepare Backend for Production
+### Prerequisites
 
-#### 1.1 Create Production Requirements
-
-Create `backend/requirements-prod.txt`:
-```txt
-Flask==3.0.0
-Flask-CORS==4.0.0
-Flask-JWT-Extended==4.6.0
-Flask-SQLAlchemy==3.1.1
-python-dotenv==1.0.0
-bcrypt==4.1.2
-requests==2.31.0
-gunicorn==21.2.0
-psycopg2-binary==2.9.9
-```
-
-#### 1.2 Add Gunicorn Config
-
-Create `backend/gunicorn_config.py`:
-```python
-import os
-
-# Gunicorn configuration for production
-bind = f"0.0.0.0:{os.environ.get('PORT', 5000)}"
-workers = 2
-threads = 4
-worker_class = "gthread"
-worker_tmp_dir = "/dev/shm"
-timeout = 120
-keepalive = 5
-errorlog = "-"
-accesslog = "-"
-loglevel = "info"
-```
-
-#### 1.3 Create Render Build Script
-
-Create `backend/build.sh`:
 ```bash
-#!/usr/bin/env bash
+# Check versions
+python --version          # 3.10+
+node --version           # 18+
+pip --version            # Latest
+
+# For ML model training
+pip install scikit-learn pandas numpy joblib
+```
+
+### Backend Setup
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate       # Windows
+# source .venv/bin/activate # macOS/Linux
+
+pip install -r requirements.txt
+
+# Create .env from template
+cp .env.example .env
+# Edit .env with your API keys (Groq, Firebase, Bhashini)
+
+# Train ML classifier (first time only)
+python -c "from models.ml_classifier import train_and_save_model; train_and_save_model()"
+
+# Run server
+python app.py  # http://localhost:5000
+```
+
+### Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm start      # http://localhost:3000
+```
+
+### API Keys Required (for full features, not required for demo)
+
+| Service | Purpose | Get Free | Optional? |
+|---------|---------|----------|-----------|
+| Groq API | LLaMA inference | https://console.groq.com | ✅ Works without |
+| Firebase | User auth + data | https://firebase.google.com | ✅ Works without |
+| Bhashini API | EN↔KN translation | https://bhashini.gov.in | ✅ Works without |
+
+---
+
+## 🔧 Part 2: ML Model Training & Validation
+
+### First-Time Setup (M2.5)
+
+```bash
+cd backend
+
+# Train classifier on 1,620 samples
+python -c "from models.ml_classifier import train_and_save_model; train_and_save_model()"
+
+# Output should show:
+# Generating 1,620 training samples...
+# Training RandomForest classifier...
+# Accuracy: 99.69% | Precision: 99.69% | Recall: 99.69% | F1: 99.69%
+# Model saved to backend/models/artifacts/urgent_classifier.pkl
+```
+
+### Verify Model Artifacts
+
+```bash
+ls -la backend/models/artifacts/
+# Should show:
+# - urgency_classifier.pkl (646 KB)
+# - label_encoder.pkl (495 B)
+```
+
+### Use Model in Production
+
+```python
+from models.ml_classifier import MediConnectMLClassifier
+
+classifier = MediConnectMLClassifier(load_existing=True)
+
+# Prediction
+result = classifier.predict({
+    'symptom_severity': 0.95,
+    'is_cardiac': 1,
+    'is_emergency_sign': 1,
+    'has_chronic': 1,
+    'multiple_symptoms': 1,
+    'age_above_60': 0,
+    'pregnant': 0,
+    'recent_surgery': 0,
+    'on_medication': 1,
+    'immune_compromised': 0
+})
+
+# Returns:
+# {
+#   'urgency': 'HIGH',
+#   'confidence': 0.996,
+#   'recommendation': '🚨 EMERGENCY: Call 108 immediately + nearest hospital'
+# }
+```
+
+---
+
+## 🔧 Part 3: Testing Before Deployment
+
+### Run Unit Tests
 # Render.com build script
 
 set -o errexit

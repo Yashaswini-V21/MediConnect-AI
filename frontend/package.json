@@ -1,12 +1,12 @@
 {
-  "name": "healthbridge-ai",
+  "name": "MediConnect-AI",
   "version": "1.0.0",
   "description": "AI-powered healthcare navigation platform - IBM SkillBuild & Edunet Foundation AIML Internship Capstone Project",
   "author": "Yashaswini V",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Yashaswini-V21/healthbridge-ai.git"
+    "url": "https://github.com/Yashaswini-V21/MediConnect-AI.git"
   },
   "keywords": [
     "healthcare",

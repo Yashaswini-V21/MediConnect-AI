@@ -1,5 +1,5 @@
 """
-Groq AI Provider for HealthBridge AI
+Groq AI Provider for MediConnect-AI
 Uses Groq's llama3-8b-8192 model for health guidance.
 Falls back to local RuleBasedProvider when API is unavailable.
 """
