@@ -30,7 +30,7 @@ Please save your attached images to these exact locations:
 
 1. Save each image from your attachments
 2. Rename them exactly as shown above
-3. Place them in this folder: `C:\MEDICONNECT_AI\frontend\public\assets\`
+3. Place them in this folder: `C:\MediConnect-AI\frontend\public\assets\`
 4. Refresh your browser to see the changes
 
 ## Current Image Status

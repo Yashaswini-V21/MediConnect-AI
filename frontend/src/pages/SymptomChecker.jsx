@@ -11,7 +11,11 @@ import { LanguageContext } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
 
 const SymptomChecker = () => {
-  const { language, toggleLanguage } = useContext(LanguageContext);
+  const { language, changeLanguage } = useContext(LanguageContext);
+  
+  const handleToggleLanguage = () => {
+    changeLanguage(language === 'english' ? 'kannada' : 'english');
+  };
   const [symptoms, setSymptoms] = useState('');
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -232,7 +236,7 @@ const SymptomChecker = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={toggleLanguage}
+                onClick={handleToggleLanguage}
                 className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg hover:shadow-xl transition-all"
                 title={`Switch to ${language === 'english' ? 'Kannada' : 'English'}`}
               >
