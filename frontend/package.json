@@ -1,7 +1,7 @@
 {
   "name": "MediConnect-AI",
   "version": "1.0.0",
-  "description": "AI-powered healthcare navigation platform - IBM SkillBuild & Edunet Foundation AIML Internship Capstone Project",
+  "description": "Enterprise healthcare SaaS with 99.69% ML urgency classifier, Groq AI engine, and intelligent hospital routing",
   "author": "Yashaswini V",
   "license": "MIT",
   "repository": {

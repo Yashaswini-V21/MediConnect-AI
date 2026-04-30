@@ -27,6 +27,15 @@ import MedicineReminder from './pages/MedicineReminder';
 import HealthTools from './pages/HealthTools';
 import FirstAidGuide from './pages/FirstAidGuide';
 import Profile from './pages/Profile';
+// ── M3: Admin Portal ──────────────────────────────────────────────────────────
+import { AdminAuthProvider } from './context/AdminAuthContext';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminOverview from './pages/admin/AdminOverview';
+import AppointmentManager from './pages/admin/AppointmentManager';
+import DoctorManager from './pages/admin/DoctorManager';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
+import RBACRoute from './components/admin/RBACRoute';
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -187,6 +196,26 @@ function App() {
                 />
               </div>
             )}
+
+            {/* ── M3: Admin Portal (separate from patient shell) ── */}
+            <AdminAuthProvider>
+              <Routes>
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin" element={
+                  <RBACRoute>
+                    <AdminDashboard />
+                  </RBACRoute>
+                }>
+                  <Route index element={<Navigate to="/admin/overview" replace />} />
+                  <Route path="overview"      element={<AdminOverview />} />
+                  <Route path="appointments"  element={<AppointmentManager />} />
+                  <Route path="doctors"       element={<DoctorManager />} />
+                  <Route path="analytics"     element={<AdminAnalytics />} />
+                  {/* Hospitals, Notifications, Tickets, Users — stubs, add pages later */}
+                  <Route path="*"             element={<Navigate to="/admin/overview" replace />} />
+                </Route>
+              </Routes>
+            </AdminAuthProvider>
           </BrowserRouter>
         </LanguageProvider>
       </AuthProvider>

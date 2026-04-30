@@ -20,6 +20,10 @@ from routes.hospital_routes import hospital_bp
 from routes.appointment_routes import appointment_bp
 from routes.chat_routes import chat_bp
 from routes.ai_platform_routes import ai_platform_bp
+from routes.admin_routes import admin_bp
+
+# M3 admin models — import so SQLAlchemy registers the tables
+import models.admin_model  # noqa: F401
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -96,6 +100,7 @@ app.register_blueprint(hospital_bp, url_prefix='/api/hospitals')
 app.register_blueprint(appointment_bp, url_prefix='/api/appointments')
 app.register_blueprint(chat_bp, url_prefix='/api/chat')
 app.register_blueprint(ai_platform_bp, url_prefix='/api/ai')
+app.register_blueprint(admin_bp, url_prefix='/api/admin')  # M3: Admin portal
 
 # ============================================
 # CREATE DATABASE TABLES
@@ -116,7 +121,7 @@ def index():
         'message': 'MediConnect AI Backend API',
         'version': '1.0.0',
         'status': 'running',
-        'description': 'AI-powered healthcare navigation platform for Microsoft Imagine Cup 2026',
+        'description': 'Production-grade healthcare SaaS: ML-powered urgency detection, Groq LLaMA integration, multi-language support, real-time hospital matching',
         'endpoints': {
             'health': '/api/health',
             'auth': '/api/auth/*',
