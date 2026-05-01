@@ -21,9 +21,12 @@ from routes.appointment_routes import appointment_bp
 from routes.chat_routes import chat_bp
 from routes.ai_platform_routes import ai_platform_bp
 from routes.admin_routes import admin_bp
+from utils.security import add_security_headers, limiter
 
 # M3 admin models — import so SQLAlchemy registers the tables
 import models.admin_model  # noqa: F401
+import models.analytics_model  # noqa: F401
+import utils.security as security_utils  # noqa: F401
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -50,6 +53,12 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 db.init_app(app)
 bcrypt.init_app(app)
 jwt = JWTManager(app)
+limiter.init_app(app)
+
+# Apply security headers
+@app.after_request
+def apply_security_headers(response):
+    return add_security_headers(response)
 
 # Initialize analyzers
 symptom_analyzer = get_symptom_analyzer()
