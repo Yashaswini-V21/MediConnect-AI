@@ -4,6 +4,7 @@ import json
 import os
 import logging
 from utils.auth_middleware import require_auth, get_authenticated_user_id
+from utils.security import encryption_service, audit_log, limiter
 
 appointment_bp = Blueprint('appointments', __name__)
 logger = logging.getLogger(__name__)
@@ -34,7 +35,9 @@ def save_appointments(appointments):
         return False
 
 @appointment_bp.route('/book', methods=['POST'])
+@limiter.limit("10 per hour")
 @require_auth()
+@audit_log("CREATE", "appointment")
 def book_appointment():
     """Book a new appointment"""
     try:
@@ -50,6 +53,10 @@ def book_appointment():
         # Load existing appointments
         appointments = load_appointments()
         
+        # Encrypt patient health data before saving
+        raw_reason = data.get('reason', '')
+        encrypted_reason = encryption_service.encrypt(raw_reason)
+        
         # Create new appointment
         new_appointment = {
             'id': f'apt_{len(appointments) + 1}_{int(datetime.now().timestamp())}',
@@ -62,7 +69,7 @@ def book_appointment():
             'patient_name': data.get('patient_name', ''),
             'patient_phone': data.get('patient_phone', ''),
             'patient_email': data.get('patient_email', ''),
-            'reason': data.get('reason', ''),
+            'reason': encrypted_reason, # STORE ENCRYPTED
             'status': 'confirmed',
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
@@ -98,6 +105,11 @@ def get_my_appointments():
         
         # Filter by user_id
         user_appointments = [apt for apt in all_appointments if apt.get('user_id') == user_id]
+        
+        # Decrypt sensitive data for the user
+        for apt in user_appointments:
+            if 'reason' in apt:
+                apt['reason'] = encryption_service.decrypt(apt['reason'])
         
         # Sort by date and time (most recent first)
         user_appointments.sort(key=lambda x: (x['date'], x['time']), reverse=True)

@@ -5,6 +5,7 @@ Email/SMS stubs are ready for M5 (Celery + SendGrid/Twilio).
 """
 
 import logging
+import os
 from datetime import datetime
 from models.user_model import db
 from models.admin_model import (
@@ -14,6 +15,34 @@ from models.admin_model import (
 
 logger = logging.getLogger(__name__)
 
+class NotificationService:
+    """
+    M5: Core Notification Service for email, SMS and in-app alerts.
+    """
+    def __init__(self):
+        self.sendgrid_api_key = os.getenv('SENDGRID_API_KEY')
+        self.twilio_sid = os.getenv('TWILIO_ACCOUNT_SID')
+        self.twilio_token = os.getenv('TWILIO_AUTH_TOKEN')
+        self.twilio_phone = os.getenv('TWILIO_PHONE_NUMBER')
+
+    def send_booking_confirmation(self, appointment, patient_email=None, patient_phone=None):
+        """Send sync in-app + async email/SMS confirmations"""
+        # In-app notification
+        notify_appointment_status_change(appointment)
+        
+        # Stubs for M5 (SendGrid/Twilio integration)
+        if patient_email:
+            logger.info(f"M5 STUB: Sending SendGrid email to {patient_email}")
+        if patient_phone:
+            logger.info(f"M5 STUB: Sending Twilio SMS to {patient_phone}")
+
+    def send_status_update(self, appointment, patient_email=None, patient_phone=None):
+        """Notify patient of confirmation, cancellation or rescheduling"""
+        notify_appointment_status_change(appointment)
+        
+        # M5 Stubs
+        msg = f"Status update: {appointment.status} for appointment on {appointment.appointment_date}"
+        logger.info(f"M5 STUB: {msg}")
 
 # ─── Message templates ────────────────────────────────────────────────────────
 

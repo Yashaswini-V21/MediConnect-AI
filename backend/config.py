@@ -20,9 +20,18 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     
-    # Rate limiting
-    RATELIMIT_ENABLED = True
-    RATELIMIT_DEFAULT = "100 per hour"
+    # AI Providers
+    GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+    BHASHINI_API_KEY = os.getenv('BHASHINI_API_KEY', '')
+    
+    # Notifications
+    SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
+    TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
+    TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
+    TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER', '')
+    
+    # Security
+    ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', '')
     
 class DevelopmentConfig(Config):
     """Development configuration"""
