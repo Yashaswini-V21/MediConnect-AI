@@ -7,9 +7,9 @@ Run: pytest tests/test_m3_m8.py -v
 
 import pytest
 import json
+import os
 from datetime import datetime, timedelta
 from flask import Flask
-from flask_testing import FlaskTestCase
 from models.user_model import db, User, SearchHistory
 from models.admin_model import (
     AdminUser, Appointment, Doctor, Notification, SupportTicket,
