@@ -1,7 +1,11 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from threading import Lock
+from sqlalchemy import func
+from models.user_model import db
+from models.admin_model import Appointment, AppointmentStatus, UrgencyLevel
+from models.analytics_model import AppointmentAnalytics
 
 class Analytics:
     """Analytics tracking for MediConnect AI - Microsoft Imagine Cup 2026"""
@@ -194,14 +198,82 @@ class Analytics:
         stats = self.get_stats()
         return {
             'total_searches': stats['total_searches'],
-            'emergency_uses': stats['emergency_uses'],
-            'time_saved_hours': stats['total_time_saved_hours'],
-            'lives_saved': stats['lives_potentially_saved'],
-            'avg_response_sec': stats['avg_response_time_sec'],
+            'total_users': stats['total_users'],
+            'avg_response_time_ms': stats['avg_response_time_ms'],
             'kannada_usage_percent': stats['kannada_usage_percent'],
             'high_urgency_percent': stats['high_urgency_percent'],
-            'engagement_rate': stats['engagement_rate']
+            'total_time_saved_hours': stats['total_time_saved_hours']
         }
+
+    def run_daily_aggregation(self):
+        """Aggregate appointment data for yesterday and store in database"""
+        yesterday = date.today() - timedelta(days=1)
+        
+        # 1. Platform-wide aggregation
+        self._aggregate_for_scope(yesterday, hospital_id=None)
+        
+        # 2. Per-hospital aggregation
+        hospitals_with_appointments = db.session.query(Appointment.hospital_id).distinct().all()
+        for hospital in hospitals_with_appointments:
+            self._aggregate_for_scope(yesterday, hospital_id=hospital[0])
+            
+        return f"✅ Analytics aggregated for {yesterday}"
+
+    def _aggregate_for_scope(self, target_date, hospital_id=None):
+        """Internal helper to aggregate stats for a specific date and hospital scope"""
+        query = Appointment.query.filter(func.date(Appointment.appointment_date) == target_date)
+        
+        if hospital_id:
+            query = query.filter(Appointment.hospital_id == hospital_id)
+            
+        appointments = query.all()
+        
+        if not appointments:
+            return
+            
+        stats = {
+            "total": len(appointments),
+            "confirmed": len([a for a in appointments if a.status == AppointmentStatus.CONFIRMED]),
+            "completed": len([a for a in appointments if a.status == AppointmentStatus.COMPLETED]),
+            "cancelled": len([a for a in appointments if a.status == AppointmentStatus.CANCELLED]),
+            "no_show": len([a for a in appointments if a.status == AppointmentStatus.NO_SHOW]),
+            "high": len([a for a in appointments if a.urgency_level == UrgencyLevel.HIGH]),
+            "medium": len([a for a in appointments if a.urgency_level == UrgencyLevel.MEDIUM]),
+            "low": len([a for a in appointments if a.urgency_level == UrgencyLevel.LOW])
+        }
+        
+        # Check if record already exists
+        record = AppointmentAnalytics.query.filter_by(date=target_date, hospital_id=hospital_id).first()
+        
+        if not record:
+            record = AppointmentAnalytics(date=target_date, hospital_id=hospital_id)
+            db.session.add(record)
+            
+        record.total_bookings = stats["total"]
+        record.confirmed = stats["confirmed"]
+        record.completed = stats["completed"]
+        record.cancelled = stats["cancelled"]
+        record.no_show = stats["no_show"]
+        record.high_urgency = stats["high"]
+        record.medium_urgency = stats["medium"]
+        record.low_urgency = stats["low"]
+        
+        db.session.commit()
+
+    def get_time_series_data(self, days=30, hospital_id=None):
+        """Fetch historical data for charting (Recharts)"""
+        start_date = date.today() - timedelta(days=days)
+        
+        query = AppointmentAnalytics.query.filter(AppointmentAnalytics.date >= start_date)
+        
+        if hospital_id:
+            query = query.filter_by(hospital_id=hospital_id)
+        else:
+            query = query.filter(AppointmentAnalytics.hospital_id.is_(None))
+            
+        results = query.order_by(AppointmentAnalytics.date.asc()).all()
+        
+        return [r.to_dict() for r in results]
     
     def save(self):
         """Save analytics data to JSON file"""
