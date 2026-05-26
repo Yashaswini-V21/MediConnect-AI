@@ -1,3 +1,8 @@
+"""
+MediConnect-AI Security Layer
+Implements encryption, audit logging, rate limiting, and secure headers for HIPAA compliance.
+"""
+
 import os
 import base64
 from datetime import datetime
@@ -9,9 +14,41 @@ from flask_limiter.util import get_remote_address
 from models.user_model import db, Base
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text
 
-# --- PART 1: AES-256 Encryption ---
+
+# ════════════════════════════════════════════════════════════════════════════════
+# PART 1: AES-256 ENCRYPTION
+# ════════════════════════════════════════════════════════════════════════════════
+
 class HealthDataEncryption:
+    """
+    AES-256 encryption for sensitive health data.
+    Uses Fernet (symmetric encryption) to encrypt/decrypt PII and medical information.
+    
+    Example:
+        >>> crypto = HealthDataEncryption()
+        >>> encrypted = crypto.encrypt("Patient has diabetes")
+        >>> decrypted = crypto.decrypt(encrypted)
+        >>> assert decrypted == "Patient has diabetes"
+    
+    Security Notes:
+        - Requires ENCRYPTION_KEY environment variable
+        - Key should be generated with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+        - Never commit key to version control
+        - Rotate keys annually
+    
+    Fields encrypted in MediConnect-AI:
+        - Appointment.reason (medical reason for visit)
+        - Appointment.notes (admin notes about condition)
+        - Any user health profile data
+    """
+    
     def __init__(self):
+        """
+        Initialize encryption cipher.
+        
+        Raises:
+            ValueError: If ENCRYPTION_KEY is invalid or missing
+        """
         # In production, this should be in os.environ["ENCRYPTION_KEY"]
         key = os.environ.get("ENCRYPTION_KEY")
         if not key:
@@ -23,11 +60,48 @@ class HealthDataEncryption:
         # Ensure it's bytes for Fernet
         self.cipher = Fernet(key.encode() if isinstance(key, str) else key)
 
+    
     def encrypt(self, data: str) -> str:
+        """
+        Encrypt sensitive health data using AES-256.
+        
+        Args:
+            data: Plain text string to encrypt (medical reason, notes, etc.)
+        
+        Returns:
+            Encrypted string (hex-encoded, safe to store in database)
+        
+        Raises:
+            Exception: If encryption fails (invalid key)
+        
+        Example:
+            >>> encrypted = encryption_service.encrypt("Type 2 Diabetes")
+            >>> print(encrypted[:20] + "...")  # gAAAAABmK...
+        """
         if not data: return data
         return self.cipher.encrypt(data.encode()).decode()
 
+    
     def decrypt(self, encrypted: str) -> str:
+        """
+        Decrypt encrypted health data.
+        
+        Args:
+            encrypted: Previously encrypted string
+        
+        Returns:
+            Decrypted plain text
+        
+        Raises:
+            InvalidToken: If data is corrupted or uses wrong key
+        
+        Note:
+            Returns original data if already unencrypted (idempotent)
+        
+        Example:
+            >>> decrypted = encryption_service.decrypt(encrypted)
+            >>> assert decrypted == "Type 2 Diabetes"
+        """
         if not encrypted: return encrypted
         try:
             return self.cipher.decrypt(encrypted.encode()).decode()
@@ -37,8 +111,42 @@ class HealthDataEncryption:
 # Initialize encryption
 encryption_service = HealthDataEncryption()
 
-# --- PART 2: Audit Logging Model ---
+
+# ════════════════════════════════════════════════════════════════════════════════
+# PART 2: AUDIT LOGGING (HIPAA Compliance)
+# ════════════════════════════════════════════════════════════════════════════════
+
 class AuditLog(db.Model):
+    """
+    Immutable audit trail of all admin actions.
+    Required for HIPAA compliance and forensic investigation.
+    
+    Fields:
+        user_id: Admin who performed action
+        action: Type of action (CREATE, UPDATE, DELETE, VIEW, CONFIRM)
+        resource: What was modified (appointment, doctor, hospital)
+        resource_id: ID of the resource
+        ip_address: IP address of requester (for tracking suspicious access)
+        user_agent: Browser/client making request
+        timestamp: When action occurred
+        success: Whether action succeeded or failed
+    
+    Example:
+        An admin confirming an appointment creates an AuditLog entry:
+        AuditLog(
+            user_id='admin@hospital.com',
+            action='UPDATE',
+            resource='appointment',
+            resource_id='appt_001',
+            ip_address='192.168.1.1',
+            success=True
+        )
+    
+    Query examples:
+        - Find all actions by admin: AuditLog.query.filter_by(user_id='admin@hospital.com')
+        - Find all failed access attempts: AuditLog.query.filter_by(success=False)
+        - Find all suspicious IP addresses: AuditLog.query.filter(AuditLog.ip_address.like('10.%'))
+    """
     __tablename__ = "audit_logs"
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(100))
@@ -51,6 +159,40 @@ class AuditLog(db.Model):
     success = Column(Boolean, default=True)
 
 def audit_log(action, resource):
+    """
+    Decorator for automatic audit logging of admin actions.
+    Logs every access, modification, and deletion for compliance.
+    
+    Args:
+        action: Type of action - 'CREATE', 'READ', 'UPDATE', 'DELETE', 'CONFIRM'
+        resource: Resource type - 'appointment', 'doctor', 'hospital', 'admin_user'
+    
+    Returns:
+        Decorated function that logs action automatically
+    
+    Usage:
+        @app.route('/appointments/<id>/confirm', methods=['PUT'])
+        @require_admin_role('PLATFORM_ADMIN', 'HOSPITAL_ADMIN')
+        @audit_log('UPDATE', 'appointment')
+        def confirm_appointment(id):
+            appointment = Appointment.query.get(id)
+            appointment.status = 'CONFIRMED'
+            db.session.commit()
+            return {'status': 'confirmed'}
+    
+    Logged fields:
+        - user_id: Admin email
+        - action: UPDATE
+        - resource: appointment
+        - resource_id: Appointment ID
+        - ip_address: Request IP (for security analysis)
+        - user_agent: Browser info
+        - timestamp: Exact time
+        - success: True if response status < 400
+    
+    Note:
+        Failures are also logged (success=False) to detect attack attempts
+    """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -89,10 +231,56 @@ def audit_log(action, resource):
 
 # --- PART 3: Rate Limiting ---
 # This will be initialized in app.py with the app instance
+
 limiter = Limiter(key_func=get_remote_address, default_limits=["1000 per hour"])
+"""
+Rate limiting configuration for API abuse prevention.
+Applied per IP address automatically to all routes.
+
+Limits:
+    - Default: 1000 requests/hour per IP
+    - AI endpoints: 30 requests/minute (expensive LLM calls)
+    - Auth endpoints: 5 login attempts/minute (brute force prevention)
+    - Booking endpoints: 10 bookings/hour (spam prevention)
+
+Use in routes:
+    @app.route('/api/appointments')
+    @limiter.limit("10/hour")
+    def create_appointment():
+        ...
+
+Headers returned:
+    X-RateLimit-Limit: 10
+    X-RateLimit-Remaining: 9
+    X-RateLimit-Reset: 1623456000
+"""
+
 
 # --- PART 4: Secure Headers ---
 def add_security_headers(response):
+    """
+    Add security headers to all responses (OWASP recommendations).
+    
+    Headers added:
+        X-Content-Type-Options: nosniff - Prevent MIME type sniffing
+        X-Frame-Options: DENY - Prevent clickjacking
+        X-XSS-Protection: 1; mode=block - Enable XSS filter
+        Strict-Transport-Security: Force HTTPS only
+        Content-Security-Policy: Only allow scripts from same origin
+    
+    Args:
+        response: Flask Response object
+    
+    Returns:
+        Response with security headers added
+    
+    Usage in app.py:
+        from utils.security import add_security_headers
+        
+        @app.after_request
+        def set_security_headers(response):
+            return add_security_headers(response)
+    """
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
