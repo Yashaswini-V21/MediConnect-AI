@@ -14,19 +14,17 @@ sys.path.insert(0, str(Path(__file__).parent))
 @pytest.fixture(scope='session')
 def app():
     """Create and configure a test Flask app for the entire test session"""
-    # Set test environment variables
+    # Set test environment variables from pytest or defaults
     os.environ['TESTING'] = 'True'
-    os.environ['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    os.environ['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI', 'sqlite:///:memory:')
     os.environ['FLASK_ENV'] = 'testing'
-    os.environ['SECRET_KEY'] = 'test-secret-key-do-not-use-in-production'
-    os.environ['JWT_SECRET_KEY'] = 'test-jwt-secret-key-do-not-use-in-production'
+    os.environ.setdefault('SECRET_KEY', 'test-key')
+    os.environ.setdefault('JWT_SECRET_KEY', 'test-jwt-key')
     
     from app import app as flask_app
     
     flask_app.config['TESTING'] = True
     flask_app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    flask_app.config['SECRET_KEY'] = 'test-secret-key'
-    flask_app.config['JWT_SECRET_KEY'] = 'test-jwt-secret-key'
     
     return flask_app
 
