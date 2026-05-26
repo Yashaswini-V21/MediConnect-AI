@@ -294,8 +294,8 @@ SETUP_GUIDE = """
    Add to .env file:
    REDIS_URL=redis://localhost:6379/0
    
-   Or for cloud instances (replace with actual credentials):
-   REDIS_URL=redis://username:password@hostname:port/database_number
+   Or for cloud instances:
+   REDIS_URL=redis://<USER>:<PASSWORD>@<HOSTNAME>:<PORT>/<DB_NUMBER>
 
 4. APPLICATION INTEGRATION
 
