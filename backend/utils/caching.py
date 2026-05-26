@@ -385,7 +385,7 @@ REDIS CACHING SETUP GUIDE
    - Sign up: https://redis.com/try-free
    - Create database
    - Get connection URL
-   - Set REDIS_URL=redis://default:password@host:port/0
+   - Set REDIS_URL=redis://default:PASSWORD@HOST:PORT/0
 
 3. ENVIRONMENT VARIABLES
    
@@ -393,7 +393,7 @@ REDIS CACHING SETUP GUIDE
    REDIS_URL=redis://localhost:6379/0
    
    Or for cloud:
-   REDIS_URL=redis://default:abc123def@redis-12345.c123.us-east-1-2.ec2.cloud.redislabs.com:12345/0
+   REDIS_URL=redis://default:PASSWORD@redis-hostname.cloud.redislabs.com:PORT/0
 
 4. APPLICATION INTEGRATION
    
