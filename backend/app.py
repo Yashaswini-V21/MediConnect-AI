@@ -68,21 +68,23 @@ hospital_matcher = get_hospital_matcher()
 # CORS CONFIGURATION
 # ============================================
 
-# Allow all Vercel domains and localhost
+# Allow all Vercel domains and localhost by default; can be overridden by ALLOWED_ORIGINS
 allowed_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
-    "https://*.vercel.app",  # Allow all Vercel deployments
-    "https://mediconnect-ai-nu.vercel.app"  # Your current deployment
+    "https://mediconnect-ai-nu.vercel.app"
 ]
 
-# Get additional origins from environment variable
-env_origins = os.getenv('ALLOWED_ORIGINS', '').split(',')
-allowed_origins.extend([origin.strip() for origin in env_origins if origin.strip()])
+# Get additional origins from environment variable (comma-separated)
+env_origins = os.getenv('ALLOWED_ORIGINS', '')
+if env_origins:
+    allowed_origins = [o.strip() for o in env_origins.split(',') if o.strip()]
 
-# Configure CORS with credentials support - Allow all origins
-CORS(app, 
-     resources={r"/api/*": {"origins": "*"}},  # Allow all origins for API
+# In production prefer explicit allowed_origins; in development allow wildcard for convenience
+cors_origins = allowed_origins if os.getenv('FLASK_ENV') == 'production' else "*"
+
+CORS(app,
+     resources={r"/api/*": {"origins": cors_origins}},
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -98,6 +100,13 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Production-time environment checks: ensure critical secrets are configured
+if os.getenv('FLASK_ENV') == 'production':
+    missing = [k for k in ('SECRET_KEY', 'JWT_SECRET_KEY', 'ADMIN_SECRET_TOKEN') if not os.getenv(k)]
+    if missing:
+        logger.error(f"Missing required environment variables for production: {', '.join(missing)}")
+        raise SystemExit(1)
 
 # ============================================
 # REGISTER BLUEPRINTS

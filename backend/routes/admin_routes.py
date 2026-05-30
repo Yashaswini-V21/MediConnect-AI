@@ -51,7 +51,7 @@ from utils.notification_service import (
 logger = logging.getLogger(__name__)
 admin_bp = Blueprint('admin', __name__)
 
-ADMIN_SECRET_TOKEN = os.getenv('ADMIN_SECRET_TOKEN', 'mediconnect-admin-dev-token')
+ADMIN_SECRET_TOKEN = os.getenv('ADMIN_SECRET_TOKEN')
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -70,6 +70,10 @@ def admin_login():
 
     if not email or not token:
         return jsonify({'error': 'email and token are required'}), 400
+
+    # Ensure admin secret is configured in non-development environments
+    if not ADMIN_SECRET_TOKEN:
+        return jsonify({'error': 'Admin token not configured on server'}), 500
 
     if token != ADMIN_SECRET_TOKEN:
         return jsonify({'error': 'Invalid credentials'}), 401
