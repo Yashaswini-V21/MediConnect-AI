@@ -99,7 +99,7 @@ print("\n[PY] Validating Python syntax...")
 try:
     for util in utilities:
         util_path = utils_dir / util
-        compile(open(util_path).read(), util_path, 'exec')
+        compile(open(util_path, encoding='utf-8').read(), util_path, 'exec')
     print("[OK] All backend utilities compile successfully")
 except SyntaxError as e:
     print(f"[ERR] Syntax error in {e.filename}: {e.msg}")
@@ -160,12 +160,52 @@ try:
     test_dist = calculate_distance((12.9716, 77.6412), (13.0827, 80.2707))
     print(f"[OK] Distance Calculator works ({test_dist:.1f} km)")
 
+    from models.hospital_matcher import get_hospital_matcher
+    from utils.healthcare_ai_platform import create_healthcare_ai_platform
+
+    hospital_matcher = get_hospital_matcher()
+
+    class VerifyRouterMock:
+        def __init__(self, matcher):
+            self.matcher = matcher
+        def find_nearest_hospital(self, lat, lng):
+            return self.matcher.find_emergency_hospitals(user_location={'lat': lat, 'lng': lng}, max_results=5)
+
+    router = VerifyRouterMock(hospital_matcher)
+
+    class DummyMetrics:
+        def get_dashboard_summary(self):
+            return {"success": True}
+        def get_daily_metrics(self, date=None):
+            return {"success": True}
+
+    class DummySmartRouter:
+        def __init__(self, matcher):
+            self.matcher = matcher
+            self.user_location = (12.9716, 77.5946)
+        def find_nearest_hospital(self, lat, lng, urgency):
+            return {"success": True, "hospitals": []}
+        def get_route(self, lat, lng, hospital_id, mode):
+            return {"success": True}
+
+    metrics = DummyMetrics()
+    smart_router = DummySmartRouter(hospital_matcher)
+
+    platform = create_healthcare_ai_platform(
+        triage_pipeline=triage,
+        safety_gate=safety_gate,
+        voice_engine=voice_engine,
+        voice_output_assistant=voice_output,
+        smart_router=smart_router,
+        reliability_metrics=metrics
+    )
+
     advanced_voice = get_advanced_voice_assistant(
         voice_engine=voice_engine,
         voice_output=voice_output,
         triage_pipeline=triage,
         emergency_flow=None,
-        hospital_matcher=None,
+        hospital_matcher=hospital_matcher,
         safety_gate=safety_gate
     )
     print(f"[OK] Advanced Voice Assistant instantiated")
@@ -201,7 +241,7 @@ try:
     
     # Test platform health
     health = platform.health_check()
-    if health and health.get("success"):
+    if health and (health.get("status") == "healthy" or health.get("success")):
         print(f"[OK] Platform health check passed")
     
 except Exception as e:

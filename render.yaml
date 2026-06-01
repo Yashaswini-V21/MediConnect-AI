@@ -3,8 +3,11 @@ services:
     type: web
     name: mediconnect-backend
     env: python
+    region: singapore      # closest to India
+    plan: free
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: gunicorn backend.app:app
+    startCommand: cd backend && gunicorn --worker-class gthread --workers 2 --threads 4 --timeout 120 app:app
+    healthCheckPath: /api/health
     envVars:
       - key: FLASK_ENV
         value: production
@@ -16,11 +19,20 @@ services:
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: ADMIN_SECRET_TOKEN
+        generateValue: true
       - key: GROQ_API_KEY
-        sync: false
+        sync: false        # Set manually in Render dashboard
       - key: BHASHINI_API_KEY
         sync: false
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://mediconnect-ai-nu.vercel.app
 
 databases:
   - name: mediconnect-db
+    databaseName: mediconnect
     plan: free

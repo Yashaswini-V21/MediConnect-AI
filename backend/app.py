@@ -1,10 +1,18 @@
 from flask import Flask, request, jsonify
+import sys
+from pathlib import Path
+
+# Ensure `backend/` is on sys.path so imports like `utils.*` and `models.*` work
+BACKEND_DIR = Path(__file__).resolve().parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 import os
 import logging
 from dotenv import load_dotenv
+from sqlalchemy import text
 from utils.auth_middleware import get_authenticated_user_id
 
 # Load environment variables
@@ -21,7 +29,8 @@ from routes.appointment_routes import appointment_bp
 from routes.chat_routes import chat_bp
 from routes.ai_platform_routes import ai_platform_bp
 from routes.admin_routes import admin_bp
-from utils.security import add_security_headers, limiter
+from routes.wellness_routes import wellness_bp
+from utils.security import add_security_headers, limiter, check_admin_token_security
 
 # M3 admin models — import so SQLAlchemy registers the tables
 import models.admin_model  # noqa: F401
@@ -55,11 +64,6 @@ bcrypt.init_app(app)
 jwt = JWTManager(app)
 limiter.init_app(app)
 
-# Apply security headers
-@app.after_request
-def apply_security_headers(response):
-    return add_security_headers(response)
-
 # Initialize analyzers
 symptom_analyzer = get_symptom_analyzer()
 hospital_matcher = get_hospital_matcher()
@@ -91,6 +95,16 @@ CORS(app,
      expose_headers=["Content-Type", "Authorization"]
 )
 
+from extensions import socketio
+
+# Initialize Socket.IO (threading mode is compatible with Python 3.14 here)
+socketio.init_app(
+    app,
+    async_mode=os.getenv('SOCKETIO_ASYNC_MODE', 'threading'),
+    message_queue=os.getenv('REDIS_URL') or None,
+    cors_allowed_origins=cors_origins,
+)
+
 # ============================================
 # LOGGING CONFIGURATION
 # ============================================
@@ -108,6 +122,9 @@ if os.getenv('FLASK_ENV') == 'production':
         logger.error(f"Missing required environment variables for production: {', '.join(missing)}")
         raise SystemExit(1)
 
+# Always warn if admin token is insecure
+check_admin_token_security()
+
 # ============================================
 # REGISTER BLUEPRINTS
 # ============================================
@@ -119,6 +136,7 @@ app.register_blueprint(appointment_bp, url_prefix='/api/appointments')
 app.register_blueprint(chat_bp, url_prefix='/api/chat')
 app.register_blueprint(ai_platform_bp, url_prefix='/api/ai')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')  # M3: Admin portal
+app.register_blueprint(wellness_bp, url_prefix='/api/wellness')  # Wellness Score
 
 # ============================================
 # CREATE DATABASE TABLES
@@ -127,6 +145,11 @@ app.register_blueprint(admin_bp, url_prefix='/api/admin')  # M3: Admin portal
 with app.app_context():
     db.create_all()
     logger.info("Database tables created successfully")
+
+# Apply security headers to every response
+@app.after_request
+def apply_security_headers(response):
+    return add_security_headers(response)
 
 # ============================================
 # HEALTH CHECK & INFO ROUTES
@@ -158,7 +181,7 @@ def health_check():
     """Health check endpoint for monitoring"""
     try:
         # Check database connection
-        db.session.execute('SELECT 1')
+        db.session.execute(text('SELECT 1'))
         db_status = 'connected'
     except Exception as e:
         db_status = f'error: {str(e)}'
@@ -613,83 +636,19 @@ def translate_text():
                 'message': 'Please provide text to translate'
             }), 400
         
+        from utils.translator import translate, detect_language, get_supported_languages
+
         text = data['text']
         target = data.get('target_language', 'kn')
-        
-        # Validate target language
-        if target not in ['kn', 'hi', 'ta', 'en']:
+
+        if target not in ['kn', 'hi', 'ta', 'en', 'kannada', 'hindi', 'tamil', 'english']:
             return jsonify({
                 'error': 'Invalid target language',
-                'message': 'Supported languages: en, kn, hi, ta'
+                'message': f'Supported languages: {", ".join(get_supported_languages())}'
             }), 400
-        
-        # Dictionary-based translation for medical terms
-        # For production scale, integrate Google Translate API or Azure Translator
-        translations = {
-            'en_to_kn': {
-                'chest pain': 'ಎದೆ ನೋವು',
-                'headache': 'ತಲೆನೋವು',
-                'fever': 'ಜ್ವರ',
-                'stomach pain': 'ಹೊಟ್ಟೆ ನೋವು',
-                'cough': 'ಕೆಮ್ಮು',
-                'cold': 'ಶೀತ',
-                'emergency': 'ತುರ್ತು',
-                'hospital': 'ಆಸ್ಪತ್ರೆ',
-                'doctor': 'ವೈದ್ಯರು',
-                'medicine': 'ಔಷಧಿ',
-            },
-            'kn_to_en': {
-                'ಎದೆ ನೋವು': 'chest pain',
-                'ತಲೆನೋವು': 'headache',
-                'ಜ್ವರ': 'fever',
-                'ಹೊಟ್ಟೆ ನೋವು': 'stomach pain',
-                'ಕೆಮ್ಮು': 'cough',
-                'ಶೀತ': 'cold',
-                'ತುರ್ತು': 'emergency',
-                'ಆಸ್ಪತ್ರೆ': 'hospital',
-                'ವೈದ್ಯರು': 'doctor',
-                'ಔಷಧಿ': 'medicine',
-            },
-            'en_to_hi': {
-                'chest pain': 'सीने में दर्द',
-                'headache': 'सिरदर्द',
-                'fever': 'बुखार',
-                'stomach pain': 'पेट दर्द',
-                'cough': 'खांसी',
-                'cold': 'जुकाम',
-                'emergency': 'आपातकाल',
-                'hospital': 'अस्पताल',
-                'doctor': 'डॉक्टर',
-                'medicine': 'दवा',
-            },
-            'en_to_ta': {
-                'chest pain': 'மார்பு வலி',
-                'headache': 'தலைவலி',
-                'fever': 'காய்ச்சல்',
-                'stomach pain': 'வயிற்று வலி',
-                'cough': 'இருமல்',
-                'cold': 'சளி',
-                'emergency': 'அவசரம்',
-                'hospital': 'மருத்துவமனை',
-                'doctor': 'மருத்துவர்',
-                'medicine': 'மருந்து',
-            }
-        }
-        
-        # Determine source language (simple detection)
-        source = 'en'
-        if any(ord(c) > 127 for c in text):
-            # Contains non-ASCII characters (likely regional language)
-            if any(ord(c) in range(0x0C80, 0x0CFF) for c in text):
-                source = 'kn'
-            elif any(ord(c) in range(0x0900, 0x097F) for c in text):
-                source = 'hi'
-            elif any(ord(c) in range(0x0B80, 0x0BFF) for c in text):
-                source = 'ta'
-        
-        # Get translation
-        translation_dict = translations.get(f'{source}_to_{target}', {})
-        translated = translation_dict.get(text.lower(), text)  # Fallback to original if not found
+
+        source = data.get('source_language') or detect_language(text)
+        translated = translate(text, from_lang=source, to_lang=target)
         
         return jsonify({
             'success': True,
@@ -772,8 +731,8 @@ def combined_search():
                 )
                 db.session.add(history_entry)
                 db.session.commit()
-        except:
-            pass
+        except Exception as history_err:
+            logger.warning(f"Could not save search history: {history_err}")
         
         return jsonify({
             'success': True,
@@ -911,11 +870,8 @@ def log_request():
 
 @app.after_request
 def after_request(response):
-    """Add security headers to all responses"""
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    return response
+    """Add security headers to all responses (single unified handler)"""
+    return add_security_headers(response)
 
 
 # ============================================

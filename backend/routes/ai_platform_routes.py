@@ -24,6 +24,53 @@ hospital_matcher = get_hospital_matcher()
 symptom_analyzer = get_symptom_analyzer()
 rule_provider = RuleBasedProvider()
 
+# Initialize AI Platform dependencies (stubs/actuals)
+from utils.healthcare_ai_platform import create_healthcare_ai_platform
+from utils.safety_guardrails import create_safety_gate
+from utils.triage_pipeline import get_triage_pipeline
+
+triage_pipeline = get_triage_pipeline()
+safety_gate = create_safety_gate(triage_pipeline)
+
+# A dummy reliability metrics instance that matches HealthcareAIPlatform's needs
+class DummyMetrics:
+    def get_dashboard_summary(self):
+        return {"success": True, "total_transactions": 100, "success_rate": "99%"}
+    def get_daily_metrics(self, date=None):
+        return {"success": True, "uptime": "100%", "latency": "50ms"}
+
+# A dummy smart router that acts as hospital matcher interface
+class DummySmartRouter:
+    def __init__(self, matcher):
+        self.matcher = matcher
+        self.user_location = (12.9716, 77.5946)
+    def find_nearest_hospital(self, lat, lng, urgency):
+        hospitals = self.matcher.find_hospitals(
+            specialties=['Emergency'],
+            user_location={'lat': lat, 'lng': lng},
+            urgency=urgency
+        )
+        return {"success": True, "hospitals": hospitals}
+    def get_route(self, lat, lng, hospital_id, mode):
+        return {
+            "success": True,
+            "distance_km": 5.2,
+            "estimated_time_minutes": 15,
+            "route_geometry": "poly_line_data"
+        }
+
+metrics = DummyMetrics()
+smart_router = DummySmartRouter(hospital_matcher)
+
+platform = create_healthcare_ai_platform(
+    triage_pipeline=triage_pipeline,
+    safety_gate=safety_gate,
+    voice_engine=voice_engine,
+    voice_output_assistant=voice_output,
+    smart_router=smart_router,
+    reliability_metrics=metrics
+)
+
 
 # ===== DIAGNOSTIC ENDPOINTS =====
 
@@ -242,6 +289,7 @@ def get_route():
         if not all([user_lat, user_lng, hospital_id]):
             return jsonify({'error': 'Required fields missing'}), 400
         
+        mode = data.get('mode', 'ambulance')
         result = platform.get_route_to_hospital(user_lat, user_lng, hospital_id, mode)
         
         return jsonify(result), 200 if result['success'] else 400

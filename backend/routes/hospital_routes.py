@@ -132,6 +132,7 @@ def list_all_hospitals():
         hospital_type = request.args.get('type')
         specialty = request.args.get('specialty')
         
+        matcher = get_hospital_matcher()
         hospitals = matcher.hospitals.copy()
         
         # Filter by type
@@ -160,6 +161,7 @@ def get_specialties():
     try:
         # Extract unique specialties from all hospitals
         specialties = set()
+        matcher = get_hospital_matcher()
         for hospital in matcher.hospitals:
             specialties.update(hospital.get('specialties', []))
         

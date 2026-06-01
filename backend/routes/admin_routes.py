@@ -31,7 +31,7 @@ import json
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, Response
 from models.user_model import db
 from models.admin_model import (
     AdminUser, Doctor, Appointment, Notification, SupportTicket,
@@ -47,11 +47,57 @@ from utils.notification_service import (
     notify_appointment_status_change, create_custom_notification,
     get_user_notifications, mark_notifications_read, get_unread_count
 )
+from utils.realtime import subscribe, unsubscribe, publish_event
+from extensions import socketio
+import base64
+from flask import request as flask_request
 
 logger = logging.getLogger(__name__)
 admin_bp = Blueprint('admin', __name__)
 
-ADMIN_SECRET_TOKEN = os.getenv('ADMIN_SECRET_TOKEN')
+def get_admin_secret_token():
+    """Read the admin secret token from the environment or `.env` file at runtime.
+
+    This explicitly attempts to load `.env` from the repository root so that
+    the server can pick up changes without requiring a process restart.
+    """
+    # First try environment
+    token = os.getenv('ADMIN_SECRET_TOKEN')
+    if token:
+        return token
+
+    # Attempt to locate and load .env from repo root
+    try:
+        from dotenv import load_dotenv
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parents[2]
+        env_file = repo_root / '.env'
+        if env_file.exists():
+            load_dotenv(dotenv_path=str(env_file))
+            return os.getenv('ADMIN_SECRET_TOKEN')
+    except Exception:
+        # If dotenv is not available or load fails, fall through
+        pass
+
+    # Fallback: try parsing .env manually (robust even without python-dotenv)
+    try:
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parents[2]
+        env_file = repo_root / '.env'
+        if env_file.exists():
+            for line in env_file.read_text(encoding='utf-8').splitlines():
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if line.startswith('ADMIN_SECRET_TOKEN='):
+                    # Split only once, support quoted values
+                    _, val = line.split('=', 1)
+                    val = val.strip().strip('"').strip("'")
+                    return val
+    except Exception:
+        pass
+
+    return None
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -72,10 +118,11 @@ def admin_login():
         return jsonify({'error': 'email and token are required'}), 400
 
     # Ensure admin secret is configured in non-development environments
-    if not ADMIN_SECRET_TOKEN:
+    admin_token = get_admin_secret_token()
+    if not admin_token:
         return jsonify({'error': 'Admin token not configured on server'}), 500
 
-    if token != ADMIN_SECRET_TOKEN:
+    if token != admin_token:
         return jsonify({'error': 'Invalid credentials'}), 401
 
     admin = AdminUser.query.filter_by(email=email, is_active=True).first()
@@ -85,7 +132,7 @@ def admin_login():
     admin.last_login = datetime.utcnow()
     db.session.commit()
 
-    import base64
+
     bearer = base64.b64encode(f"{email}:{token}".encode()).decode()
 
     return jsonify({
@@ -102,6 +149,75 @@ def get_me():
     """Return current admin's profile."""
     admin = get_current_admin()
     return jsonify({'success': True, 'admin': admin.to_dict()}), 200
+
+
+# Socket.IO admin namespace authentication
+@socketio.on('connect', namespace='/admin')
+def handle_admin_connect(auth):
+    """Authenticate admin socket connections using the base64 bearer token."""
+    token = None
+    if isinstance(auth, dict):
+        token = auth.get('token')
+    if not token:
+        token = flask_request.args.get('token')
+
+    if not token:
+        return False
+
+    try:
+        decoded = base64.b64decode(token).decode()
+        email, t = decoded.split(':', 1)
+    except Exception:
+        return False
+
+    admin_token = get_admin_secret_token()
+    if t != admin_token:
+        return False
+
+    admin = AdminUser.query.filter_by(email=email, is_active=True).first()
+    if not admin:
+        return False
+
+    # authenticated — connection accepted
+    return True
+
+
+@admin_bp.route('/stream')
+def admin_stream():
+    """Server-Sent Events stream for admin clients.
+    Clients must supply `?token=<bearer>` where bearer is the base64 token
+    returned by `/api/admin/login`.
+    """
+    token = request.args.get('token')
+    if not token:
+        return jsonify({'error': 'token is required'}), 401
+
+    import base64
+    try:
+        decoded = base64.b64decode(token).decode()
+        email, t = decoded.split(':', 1)
+    except Exception:
+        return jsonify({'error': 'invalid token'}), 400
+
+    admin_token = get_admin_secret_token()
+    if t != admin_token:
+        return jsonify({'error': 'invalid credentials'}), 401
+
+    admin = AdminUser.query.filter_by(email=email, is_active=True).first()
+    if not admin:
+        return jsonify({'error': 'admin not found'}), 404
+
+    q = subscribe()
+
+    def event_stream():
+        try:
+            while True:
+                ev = q.get()
+                yield f"data: {json.dumps(ev)}\n\n"
+        finally:
+            unsubscribe(q)
+
+    return Response(event_stream(), mimetype='text/event-stream')
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -220,6 +336,12 @@ def update_appointment_status(appointment_id):
 
     # Fire notification
     notify_appointment_status_change(apt, sent_by_admin_id=admin.id)
+
+    # Emit Socket.IO event to connected admin clients
+    try:
+        socketio.emit('appointment_updated', apt.to_dict(), namespace='/admin')
+    except Exception:
+        logger.exception('Failed to emit socket event')
 
     return jsonify({
         'success': True,

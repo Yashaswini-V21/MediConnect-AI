@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Calendar, Shield, Droplet, Target, FileText, Edit2, X, TrendingUp, Activity, Calculator, Heart, Brain, LogOut } from 'lucide-react';
+import { User, Mail, Calendar, Shield, Droplet, Target, FileText, Edit2, X, TrendingUp, Activity, Calculator, Heart, Brain, LogOut, Star, Clock } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import api from '../services/api';
+import AppointmentsTab from '../components/profile/AppointmentsTab';
 
 const Profile = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
+
+
   
   const handleLogout = () => {
     logout();
@@ -210,6 +214,7 @@ const Profile = () => {
         >
           {[
             { id: 'overview', label: 'Overview', icon: User },
+            { id: 'appointments', label: 'My Appointments', icon: Calendar },
             { id: 'health', label: 'Health Tracking', icon: Activity },
             { id: 'tools', label: 'Health Tools', icon: Calculator },
             { id: 'records', label: 'Medical Records', icon: FileText }
@@ -439,6 +444,11 @@ const Profile = () => {
             </motion.div>
           </div>
         </motion.div>
+        )}
+
+        {/* My Appointments Tab */}
+        {activeTab === 'appointments' && (
+          <AppointmentsTab profileInfo={profileInfo} navigate={navigate} />
         )}
 
         {/* Health Tracking Tab */}

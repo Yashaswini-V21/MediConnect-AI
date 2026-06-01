@@ -27,6 +27,7 @@ import MedicineReminder from './pages/MedicineReminder';
 import HealthTools from './pages/HealthTools';
 import FirstAidGuide from './pages/FirstAidGuide';
 import Profile from './pages/Profile';
+import WellnessScore from './pages/WellnessScore';
 // ── M3: Admin Portal ──────────────────────────────────────────────────────────
 import { AdminAuthProvider } from './context/AdminAuthContext';
 import AdminLogin from './pages/admin/AdminLogin';
@@ -173,6 +174,14 @@ function App() {
                       element={
                         <ProtectedRoute>
                           <FirstAidGuide />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/wellness"
+                      element={
+                        <ProtectedRoute>
+                          <WellnessScore />
                         </ProtectedRoute>
                       }
                     />

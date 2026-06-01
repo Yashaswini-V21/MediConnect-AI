@@ -1,150 +1,228 @@
 import React from 'react';
-import { Github, Twitter, Linkedin, Phone, Mail, MapPin, Shield } from 'lucide-react';
-import Logo from './Logo';
+import { Link } from 'react-router-dom';
+import { Github, Linkedin, Phone, Mail, MapPin, Shield, Heart, Activity, ExternalLink } from 'lucide-react';
+
+const QUICK_LINKS = [
+  { to: '/',                label: 'Home' },
+  { to: '/symptom-checker', label: 'Symptom Checker' },
+  { to: '/hospitals',       label: 'Find Hospitals' },
+  { to: '/wellness',        label: 'Wellness Score ✨' },
+  { to: '/emergency',       label: 'Emergency SOS' },
+  { to: '/appointments',    label: 'Appointments' },
+];
+
+const FEATURE_LINKS = [
+  { to: '/skincare',          label: 'AI Skincare' },
+  { to: '/first-aid',         label: 'First Aid Guide' },
+  { to: '/medicine-reminder', label: 'Medicine Reminders' },
+  { to: '/health-tools',      label: 'Health Tools' },
+  { to: '/chat-doctor',       label: 'AI Doctor Chat' },
+  { to: '/specialists',       label: 'Specialists' },
+];
+
+const EMERGENCY_LINES = [
+  { label: 'National Emergency', number: '108', icon: '🚨' },
+  { label: 'Medical / Ambulance', number: '102', icon: '🚑' },
+  { label: 'Police',              number: '100', icon: '👮' },
+  { label: 'Women Helpline',      number: '1091', icon: '💜' },
+];
 
 const Footer = () => {
+  const year = new Date().getFullYear();
+
   return (
-    <footer className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-black text-white overflow-hidden">
-      {/* Simple Pattern Background */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
-          backgroundSize: '30px 30px'
-        }} />
-      </div>
-      
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-      
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-          {/* Brand Section */}
-          <div className="col-span-1">
-            <div className="mb-6">
-              <Logo size="small" animated={false} showText={true} />
+    <footer className="bg-gradient-to-b from-slate-900 to-black text-white">
+
+      {/* ── Top decorative accent ── */}
+      <div className="h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
+
+      {/* ── Main content ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+
+          {/* Brand */}
+          <div className="lg:col-span-1">
+            <Link to="/" className="inline-flex items-center gap-2.5 mb-5 group">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:scale-105 transition-transform">
+                <Heart className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-lg font-extrabold text-white leading-none tracking-tight">MediConnect AI</div>
+                <div className="text-[9px] font-bold text-purple-400 tracking-widest uppercase mt-0.5">Healthcare Platform</div>
+              </div>
+            </Link>
+
+            <p className="text-sm text-slate-400 leading-relaxed mb-6">
+              AI-powered healthcare navigation connecting patients with the right medical care — instantly, securely, multilingually.
+            </p>
+
+            {/* Academic badge */}
+            <div className="inline-flex flex-col gap-2">
+              <div className="flex items-center gap-2 px-3 py-2 bg-purple-900/40 border border-purple-700/50 rounded-lg text-xs text-purple-300 font-semibold">
+                <Activity className="w-3.5 h-3.5" />
+                IBM SkillBuild × Edunet Foundation
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs text-slate-400">
+                <Shield className="w-3.5 h-3.5 text-green-400" />
+                AES-256 Encrypted · RBAC Secured
+              </div>
             </div>
-            <p className="text-lg text-cyan-300 mb-4 font-semibold leading-relaxed">
-              AI-Powered Healthcare Navigation
-            </p>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              Connecting patients with the right medical care, instantly.
-            </p>
-            <div className="mt-6 flex items-center space-x-2 text-sm text-cyan-400">
-              <Shield className="w-5 h-5" />
-              <span className="font-bold">Trusted Healthcare Partner</span>
+
+            {/* Social links */}
+            <div className="flex items-center gap-3 mt-6">
+              <a
+                href="https://github.com/Yashaswini-V21/MediConnect-AI"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 bg-slate-800 hover:bg-purple-600 rounded-lg flex items-center justify-center transition-colors"
+                aria-label="GitHub"
+              >
+                <Github className="w-4 h-4" />
+              </a>
+              <a
+                href="https://www.linkedin.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 bg-slate-800 hover:bg-blue-600 rounded-lg flex items-center justify-center transition-colors"
+                aria-label="LinkedIn"
+              >
+                <Linkedin className="w-4 h-4" />
+              </a>
+              <a
+                href="https://mediconnect-ai-nu.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 bg-slate-800 hover:bg-emerald-600 rounded-lg flex items-center justify-center transition-colors"
+                aria-label="Live Demo"
+                title="Live Demo"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
             </div>
           </div>
 
-          {/* Quick Access */}
+          {/* Quick Links */}
           <div>
-            <h3 className="text-white font-bold text-xl mb-6 tracking-wide">
+            <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-5 flex items-center gap-2">
+              <span className="w-1 h-4 bg-purple-500 rounded-full inline-block" />
               Quick Links
             </h3>
-            <ul className="space-y-3">
-              <li><a href="/" className="text-slate-300 hover:text-cyan-400 transition-colors text-base block">Home</a></li>
-              <li><a href="/symptoms" className="text-slate-300 hover:text-cyan-400 transition-colors text-base block">Symptom Checker</a></li>
-              <li><a href="/hospitals" className="text-slate-300 hover:text-cyan-400 transition-colors text-base block">Find Hospitals</a></li>
-              <li><a href="/dashboard" className="text-slate-300 hover:text-cyan-400 transition-colors text-base block">Dashboard</a></li>
-              <li><a href="/emergency" className="text-slate-300 hover:text-cyan-400 transition-colors text-base block">Emergency</a></li>
+            <ul className="space-y-2.5">
+              {QUICK_LINKS.map((link) => (
+                <li key={link.to}>
+                  <Link
+                    to={link.to}
+                    className="text-sm text-slate-400 hover:text-purple-300 transition-colors flex items-center gap-1.5 group"
+                  >
+                    <span className="w-1 h-1 rounded-full bg-slate-600 group-hover:bg-purple-500 transition-colors shrink-0" />
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Important Links */}
+          {/* Features */}
           <div>
-            <h3 className="text-white font-black text-lg mb-6 tracking-wide">📋 Information</h3>
-            <ul className="space-y-3">
-              <li><a href="/about" className="text-teal-100 hover:text-emerald-400 transition-colors font-bold text-base block">About MediConnect</a></li>
-              <li><a href="/how-it-works" className="text-teal-100 hover:text-emerald-400 transition-colors font-bold text-base block">How It Works</a></li>
-              <li><a href="/privacy" className="text-teal-100 hover:text-emerald-400 transition-colors font-bold text-base block">Privacy & Security</a></li>
-              <li><a href="/terms" className="text-teal-100 hover:text-emerald-400 transition-colors font-bold text-base block">Terms of Service</a></li>
-              <li><a href="/contact" className="text-teal-100 hover:text-emerald-400 transition-colors font-bold text-base block">Contact Support</a></li>
+            <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-5 flex items-center gap-2">
+              <span className="w-1 h-4 bg-indigo-500 rounded-full inline-block" />
+              Features
+            </h3>
+            <ul className="space-y-2.5">
+              {FEATURE_LINKS.map((link) => (
+                <li key={link.to}>
+                  <Link
+                    to={link.to}
+                    className="text-sm text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-1.5 group"
+                  >
+                    <span className="w-1 h-1 rounded-full bg-slate-600 group-hover:bg-indigo-500 transition-colors shrink-0" />
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Emergency Contacts */}
-          <div className="bg-gradient-to-br from-red-600 via-red-700 to-rose-800 rounded-2xl p-6 shadow-2xl border-2 border-red-400">
-            <h3 className="text-white font-black text-xl mb-4 flex items-center tracking-wide">
-              <Phone className="w-6 h-6 mr-2 animate-pulse" />
+          {/* Emergency Helplines */}
+          <div>
+            <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-5 flex items-center gap-2">
+              <span className="w-1 h-4 bg-red-500 rounded-full inline-block animate-pulse" />
               Emergency Helplines
             </h3>
-            <div className="space-y-4">
-              <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 border border-white/30">
-                <p className="text-xs text-red-100 mb-1 font-black">🚨 EMERGENCY</p>
-                <a href="tel:108" className="text-2xl font-black text-white hover:text-yellow-300 transition-colors block">108</a>
-                <p className="text-xs text-red-100 mt-1 font-bold">National Emergency</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 border border-white/30">
-                <p className="text-xs text-red-100 mb-1 font-black">🚑 AMBULANCE</p>
-                <a href="tel:102" className="text-2xl font-black text-white hover:text-yellow-300 transition-colors block">102</a>
-                <p className="text-xs text-red-100 mt-1 font-bold">Medical Emergency</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 border border-white/30">
-                <p className="text-xs text-red-100 mb-1 font-black">👮 POLICE</p>
-                <a href="tel:100" className="text-2xl font-black text-white hover:text-yellow-300 transition-colors block">100</a>
-                <p className="text-xs text-red-100 mt-1 font-bold">Security Emergency</p>
-              </div>
-            </div>
-            <p className="text-xs text-red-100 mt-4 text-center font-black tracking-wider">⚡ Available 24/7</p>
-          </div>
-        </div>
-
-        {/* Contact Bar */}
-        <div className="mt-12 pt-8 border-t border-emerald-700/50">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="flex items-center space-x-3 text-teal-100">
-              <Mail className="w-5 h-5 text-emerald-400" />
-              <div>
-                <p className="text-xs text-emerald-300 font-black">EMAIL</p>
-                <a href="mailto:support@mediconnect.ai" className="text-base font-black hover:text-emerald-400 transition-colors">support@mediconnect.ai</a>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 text-teal-100">
-              <Phone className="w-5 h-5 text-emerald-400" />
-              <div>
-                <p className="text-xs text-emerald-300 font-black">HELPLINE</p>
-                <a href="tel:1800-MEDICONNECT" className="text-base font-black hover:text-emerald-400 transition-colors">1800-MEDICONNECT</a>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 text-teal-100">
-              <MapPin className="w-5 h-5 text-emerald-400" />
-              <div>
-                <p className="text-xs text-emerald-300 font-black">HEADQUARTERS</p>
-                <p className="text-base font-black">Bangalore, Karnataka, India</p>
-              </div>
+            <div className="space-y-2.5">
+              {EMERGENCY_LINES.map(({ label, number, icon }) => (
+                <a
+                  key={number}
+                  href={`tel:${number}`}
+                  className="flex items-center justify-between p-3 bg-slate-800/60 hover:bg-red-900/30 border border-slate-700/50 hover:border-red-700/50 rounded-xl transition-all group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-base">{icon}</span>
+                    <div>
+                      <div className="text-xs text-slate-400 group-hover:text-red-300 transition-colors">{label}</div>
+                      <div className="text-base font-extrabold text-white">{number}</div>
+                    </div>
+                  </div>
+                  <Phone className="w-3.5 h-3.5 text-slate-500 group-hover:text-red-400 transition-colors" />
+                </a>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-emerald-700/50 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <div className="text-center md:text-left">
-            <p className="text-base font-black text-white mb-1 tracking-wide">
-              © 2026 MediConnect AI. All Rights Reserved.
+        {/* ── Contact Bar ── */}
+        <div className="mt-12 pt-8 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="flex items-center gap-3 text-slate-400 hover:text-purple-300 transition-colors group">
+            <div className="w-8 h-8 bg-slate-800 group-hover:bg-purple-900/40 rounded-lg flex items-center justify-center transition-colors">
+              <Mail className="w-4 h-4 text-purple-400" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Email</div>
+              <a href="mailto:support@mediconnect.ai" className="text-sm font-semibold">support@mediconnect.ai</a>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-indigo-300 transition-colors group">
+            <div className="w-8 h-8 bg-slate-800 group-hover:bg-indigo-900/40 rounded-lg flex items-center justify-center transition-colors">
+              <Phone className="w-4 h-4 text-indigo-400" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Helpline</div>
+              <div className="text-sm font-semibold">1800-MEDICONNECT</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-emerald-300 transition-colors group">
+            <div className="w-8 h-8 bg-slate-800 group-hover:bg-emerald-900/40 rounded-lg flex items-center justify-center transition-colors">
+              <MapPin className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Location</div>
+              <div className="text-sm font-semibold">Bangalore, Karnataka, India</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Bottom Bar ── */}
+        <div className="mt-8 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-slate-500">
+              © {year} <span className="text-slate-300 font-semibold">MediConnect AI</span>. All rights reserved.
             </p>
-            <p className="text-sm text-emerald-200 font-black tracking-wide">
-              🏆 Microsoft Imagine Cup 2026 Project | Made with ❤️ in India
+            <p className="text-xs text-slate-600 mt-1">
+              Built for · IBM SkillBuild AIML Internship · Edunet Foundation Capstone Project
             </p>
           </div>
-          <div className="flex space-x-6">
-            <a href="https://github.com/Yashaswini-V21/mediconnect-ai" target="_blank" rel="noopener noreferrer" 
-               className="bg-white/10 hover:bg-white/20 backdrop-blur-sm p-3 rounded-full transition-all hover:scale-110">
-              <Github className="w-6 h-6 text-white" />
-            </a>
-            <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm p-3 rounded-full transition-all hover:scale-110">
-              <Twitter className="w-6 h-6 text-white" />
-            </a>
-            <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm p-3 rounded-full transition-all hover:scale-110">
-              <Linkedin className="w-6 h-6 text-white" />
-            </a>
-          </div>
-        </div>
 
-        {/* Trust Badge */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-emerald-200 font-black inline-flex items-center justify-center space-x-2 tracking-wide">
-            <Shield className="w-4 h-4" />
-            <span>Trusted Healthcare Navigation Platform | HIPAA Compliant | Secure & Private</span>
-          </p>
+          <div className="flex items-center gap-4 text-xs text-slate-600">
+            <span className="flex items-center gap-1.5">
+              <Shield className="w-3 h-3 text-green-500" />
+              AES-256 Encrypted
+            </span>
+            <span className="text-slate-700">·</span>
+            <span className="flex items-center gap-1.5">
+              <Heart className="w-3 h-3 text-red-500" />
+              Made with love in India
+            </span>
+          </div>
         </div>
       </div>
     </footer>
