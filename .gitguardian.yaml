@@ -1,0 +1,6 @@
+version: 1
+git:
+  paths-ignore:
+    - '**/package-lock.json'
+    - '**/yarn.lock'
+    - '**/pnpm-lock.yaml'

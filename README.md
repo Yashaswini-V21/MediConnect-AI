@@ -92,7 +92,7 @@ MediConnect AI puts an AI-powered medical guidance system in every patient's han
 
 </div>
 
-4. Run backend (development):
+---
 
 ## 🖥️ Screenshots
 
@@ -180,7 +180,7 @@ flowchart TD
     end
 ```
 
-5. Run frontend (development):
+---
 
 ## 🔄 System Data Flow (How It Works)
 
