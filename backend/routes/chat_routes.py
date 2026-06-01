@@ -6,6 +6,8 @@ from flask import Blueprint, request, jsonify
 from utils.groq_provider import get_health_response
 from utils.ai_provider import RuleBasedProvider
 from utils.diagnostic_agent import run_diagnostic  # New LangGraph agent
+from utils.sarvam import SARVAM_API_KEY
+from utils.sarvam import translate_via_sarvam
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,6 +16,24 @@ chat_bp = Blueprint('chat', __name__)
 
 # Local rule-based provider (used for quick-advice and as import)
 provider = RuleBasedProvider()
+
+
+def _normalize_language(language: str) -> str:
+    return (language or 'en').strip().lower()
+
+
+def _translate_chat_response(text: str, language: str) -> str:
+    """Translate a response to Kannada via Sarvam when configured."""
+    if _normalize_language(language) not in ('kn', 'kannada'):
+        return text
+    if not SARVAM_API_KEY:
+        return text
+
+    try:
+        return translate_via_sarvam(text, source='en', target='kn')
+    except Exception:
+        logger.exception('Sarvam translation failed for chatbot response')
+        return text
 
 
 @chat_bp.route('/doctor', methods=['POST'])
@@ -25,7 +45,7 @@ def doctor_chat():
     try:
         data = request.get_json()
         message = data.get('message', '').strip()
-        language = data.get('language', 'en')
+        language = _normalize_language(data.get('language', 'en'))
 
         if not message:
             return jsonify({
@@ -45,9 +65,11 @@ def doctor_chat():
             logger.info("Using LangGraph Diagnostic Agent for reactive analysis")
             agent_result = run_diagnostic(message, language=language)
             
+            response_text = _translate_chat_response(agent_result['final_response'], language)
+
             return jsonify({
                 'success': True,
-                'response': agent_result['final_response'],
+                'response': response_text,
                 'urgency': agent_result['urgency_level'],
                 'specialist': ', '.join(agent_result['matched_specialists']),
                 'hospitals': agent_result['nearest_hospitals'],
@@ -57,10 +79,11 @@ def doctor_chat():
         
         # Regular chat fallback for conversational queries
         result = get_health_response(message, language)
+        response_text = _translate_chat_response(result['response'], language)
 
         return jsonify({
             'success': True,
-            'response': result['response'],
+            'response': response_text,
             'urgency': result.get('urgency', 'LOW'),
             'specialist': result.get('specialist', 'General Physician'),
             'source': result.get('source', 'groq'),

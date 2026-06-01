@@ -114,6 +114,11 @@ class AdminUser(db.Model):
         foreign_keys='SupportTicket.admin_id'
     )
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.id:
+            self.id = _uuid()
+
     def to_dict(self):
         return {
             'id':          self.id,
@@ -122,7 +127,7 @@ class AdminUser(db.Model):
             'hospital_id': self.hospital_id,
             'permissions': self.permissions or [],
             'is_active':   self.is_active,
-            'created_at':  self.created_at.isoformat(),
+            'created_at':  self.created_at.isoformat() if self.created_at else None,
             'last_login':  self.last_login.isoformat() if self.last_login else None,
         }
 
@@ -174,7 +179,7 @@ class Doctor(db.Model):
             'available_slots':    self.available_slots or {},
             'max_daily_bookings': self.max_daily_bookings,
             'is_active':          self.is_active,
-            'created_at':         self.created_at.isoformat(),
+            'created_at':         self.created_at.isoformat() if self.created_at else None,
         }
 
     def __repr__(self):
@@ -205,6 +210,8 @@ class Appointment(db.Model):
     reason           = db.Column(db.Text, nullable=True)
     notes            = db.Column(db.Text, nullable=True)
     hospital_name    = db.Column(db.String(200), nullable=True)                 # Denormalized for speed
+    rating           = db.Column(db.Integer, nullable=True)
+    review           = db.Column(db.Text, nullable=True)
     created_at       = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at       = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -219,6 +226,11 @@ class Appointment(db.Model):
             self.updated_at = datetime.utcnow()
             return True
         return False
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.id:
+            self.id = _uuid()
 
     def to_dict(self):
         return {
@@ -238,7 +250,9 @@ class Appointment(db.Model):
             'patient_email':    self.patient_email,
             'reason':           self.reason,
             'notes':            self.notes,
-            'created_at':       self.created_at.isoformat(),
+            'rating':           self.rating,
+            'review':           self.review,
+            'created_at':       self.created_at.isoformat() if self.created_at else None,
             'updated_at':       self.updated_at.isoformat() if self.updated_at else None,
         }
 
@@ -263,6 +277,11 @@ class Notification(db.Model):
     is_read           = db.Column(db.Boolean, default=False)
     created_at        = db.Column(db.DateTime, default=datetime.utcnow)
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.id:
+            self.id = _uuid()
+
     def to_dict(self):
         return {
             'id':             self.id,
@@ -272,7 +291,7 @@ class Notification(db.Model):
             'message':        self.message,
             'channel':        self.channel,
             'is_read':        self.is_read,
-            'created_at':     self.created_at.isoformat(),
+            'created_at':     self.created_at.isoformat() if self.created_at else None,
         }
 
     def __repr__(self):
@@ -299,6 +318,11 @@ class SupportTicket(db.Model):
         self.status = TicketStatus.RESOLVED
         self.resolved_at = datetime.utcnow()
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.id:
+            self.id = _uuid()
+
     def to_dict(self):
         return {
             'id':          self.id,
@@ -308,7 +332,7 @@ class SupportTicket(db.Model):
             'description': self.description,
             'status':      self.status,
             'priority':    self.priority,
-            'created_at':  self.created_at.isoformat(),
+            'created_at':  self.created_at.isoformat() if self.created_at else None,
             'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None,
         }
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { History, X, Search, Clock, TrendingUp, Trash2 } from 'lucide-react';
+import { X, Search, Clock, TrendingUp, Trash2 } from 'lucide-react';
 import { storageService } from '../../services/storage';
 import { formatDate, formatTime } from '../../utils/helpers';
 import toast from 'react-hot-toast';

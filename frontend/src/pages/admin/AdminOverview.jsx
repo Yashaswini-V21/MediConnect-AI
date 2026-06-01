@@ -14,7 +14,7 @@ const STATUS_COLORS = {
 };
 
 export default function AdminOverview() {
-  const { adminFetch, role } = useAdminAuth();
+  const { adminFetch, role, admin } = useAdminAuth();
   const [summary, setSummary]   = useState(null);
   const [recent, setRecent]     = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -29,6 +29,38 @@ export default function AdminOverview() {
     }).catch(console.error)
       .finally(() => setLoading(false));
   }, [adminFetch]);
+
+
+  // Realtime updates via Socket.IO
+  useEffect(() => {
+    if (!admin) return;
+    const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const io = require('socket.io-client');
+    const socket = io(API_BASE, { path: '/socket.io', transports: ['websocket'], auth: { token: admin.bearer } });
+
+    socket.on('connect', () => {
+      // join admin namespace/room if needed
+    });
+
+    socket.on('appointment_created', (apt) => {
+      setRecent(prev => [apt, ...prev].slice(0, 5));
+      setSummary(s => {
+        if (!s) return s;
+        const ns = { ...s };
+        ns.total_appointments = (ns.total_appointments || 0) + 1;
+        ns.by_status = { ...(ns.by_status || {}) };
+        ns.by_status[apt.status] = (ns.by_status[apt.status] || 0) + 1;
+        return ns;
+      });
+    });
+
+    socket.on('appointment_updated', (apt) => {
+      setRecent(prev => prev.map(a => a.id === apt.id ? apt : a));
+    });
+
+    socket.on('disconnect', () => {});
+    return () => socket.close();
+  }, [admin]);
 
   if (loading) return <Skeleton />;
 

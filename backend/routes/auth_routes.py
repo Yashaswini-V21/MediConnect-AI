@@ -6,6 +6,7 @@ from utils.analytics import analytics
 from utils.auth_middleware import require_auth, get_authenticated_user_id
 from datetime import timedelta
 import re
+import os
 import logging
 
 auth_bp = Blueprint('auth', __name__)
@@ -54,9 +55,9 @@ def send_otp():
                 'success': True,
                 'message': 'OTP sent successfully to your email'
             }
-            # Include OTP in response for development mode
-            if otp_dev:
-                response['otp_dev'] = otp_dev  # Only for testing
+            # Only include OTP in response in development mode — never in production
+            if otp_dev and os.getenv('FLASK_ENV', 'development') == 'development':
+                response['otp_dev'] = otp_dev
             
             logger.info(f"OTP sent to {email}")
             return jsonify(response), 200

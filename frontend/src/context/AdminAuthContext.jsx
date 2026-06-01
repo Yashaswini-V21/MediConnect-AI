@@ -9,7 +9,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 const AdminAuthContext = createContext(null);
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-const ADMIN_TOKEN = process.env.REACT_APP_ADMIN_TOKEN || 'mediconnect-admin-dev-token';
+const ADMIN_TOKEN = process.env.REACT_APP_ADMIN_TOKEN; // must be provided in environment
 const STORAGE_KEY = 'mediconnect_admin_session';
 
 export function AdminAuthProvider({ children }) {
@@ -35,6 +35,11 @@ export function AdminAuthProvider({ children }) {
   const login = useCallback(async (email) => {
     setError(null);
     try {
+      if (!ADMIN_TOKEN) {
+        const msg = 'Admin token not configured in the client environment';
+        setError(msg);
+        return { success: false, error: msg };
+      }
       const res = await fetch(`${API_BASE}/api/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

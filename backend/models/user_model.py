@@ -38,7 +38,7 @@ class User(db.Model):
             'full_name': self.full_name,
             'phone': self.phone,
             'preferred_language': self.preferred_language,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class SearchHistory(db.Model):
@@ -57,7 +57,7 @@ class SearchHistory(db.Model):
             'symptoms': self.symptoms,
             'urgency_level': self.urgency_level,
             'specialties': self.specialties,
-            'timestamp': self.timestamp.isoformat()
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None
         }
 
 class Favorite(db.Model):
@@ -72,5 +72,5 @@ class Favorite(db.Model):
         return {
             'id': self.id,
             'hospital_id': self.hospital_id,
-            'added_at': self.added_at.isoformat()
+            'added_at': self.added_at.isoformat() if self.added_at else None
         }

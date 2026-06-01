@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { GoogleMap, LoadScript, Marker, InfoWindow, Circle } from '@react-google-maps/api';
 import { MapPin, Phone, Navigation, Clock, Heart } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const containerStyle = {
   width: '100%',

@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file: .env
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/app:delegated
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped

@@ -24,7 +24,7 @@ const ACTION_LABELS = {
 const ALL_STATUSES = ['', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
 export default function AppointmentManager() {
-  const { adminFetch, isPlatformAdmin } = useAdminAuth();
+  const { adminFetch, isPlatformAdmin, admin } = useAdminAuth();
 
   const [appointments, setAppointments] = useState([]);
   const [pagination, setPagination]     = useState({ page: 1, total: 0, pages: 1, per_page: 20 });
@@ -59,6 +59,18 @@ export default function AppointmentManager() {
   }, [adminFetch, filters]);
 
   useEffect(() => { fetchAppointments(1); }, [filters]);
+
+  // Realtime: refresh when appointments change via Socket.IO
+  useEffect(() => {
+    if (!admin) return;
+    const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const io = require('socket.io-client');
+    const socket = io(API_BASE, { path: '/socket.io', transports: ['websocket'], auth: { token: admin.bearer } });
+    socket.on('appointment_created', () => fetchAppointments(pagination.page));
+    socket.on('appointment_updated', () => fetchAppointments(pagination.page));
+    socket.on('connect_error', () => socket.close());
+    return () => socket.close();
+  }, [admin, fetchAppointments, pagination.page]);
 
   const updateStatus = async (aptId, newStatus) => {
     setActionLoading(aptId + newStatus);

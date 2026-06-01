@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 const Favorites = () => {
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { t } = useLanguage();
+  const { } = useLanguage(); // keep context for future i18n use
 
   useEffect(() => {
     loadFavorites();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Mic, MicOff, Bot, User, Volume2, Loader } from 'lucide-react';
+import { X, Send, Mic, MicOff, Bot, User, Loader } from 'lucide-react';
 import { LanguageContext } from '../../context/LanguageContext';
 import api from '../../services/api';
 import aiPlatformApi from '../../services/aiPlatformApi';
@@ -21,7 +21,6 @@ const AIDoctorBot = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
-  const recognitionRef = useRef(null);
   const { language } = useContext(LanguageContext);
 
   const scrollToBottom = () => {
@@ -88,7 +87,7 @@ const AIDoctorBot = () => {
         }))
       });
 
-      const botText = language === 'kannada' ? (response.data.response_kn || response.data.response) : response.data.response;
+      const botText = response.data.response || '';
       
       const botMessage = {
         id: Date.now() + 1,
@@ -226,7 +225,7 @@ const AIDoctorBot = () => {
                         : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                     }`}>
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {language === 'kannada' && message.textKn ? message.textKn : message.text}
+                        {message.text}
                       </p>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-2">

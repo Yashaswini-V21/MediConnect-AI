@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, Phone, MapPin, Send, User, X, Check } from 'lucide-react';
+import { AlertCircle, Phone, MapPin, User, X, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const EmergencySOS = () => {
