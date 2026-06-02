@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useRef } from 'react';
 import { authHelpers } from '../services/firebaseClient';
+import { storageService } from '../services/storage';
 import api from '../services/api';
 
 export const AuthContext = createContext();
@@ -69,6 +70,8 @@ export const AuthProvider = ({ children }) => {
     setSession(null);
     setBackendProfile(null);
     lastSyncedUidRef.current = null;
+    // Wipe ALL MediConnect data from storage on sign-out
+    storageService.clearAll();
   };
 
   const value = {

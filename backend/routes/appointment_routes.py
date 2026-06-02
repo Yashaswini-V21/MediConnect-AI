@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import os
 import logging
@@ -9,6 +9,10 @@ from models.user_model import db
 from models.admin_model import Appointment, AppointmentStatus
 from utils.realtime import publish_event
 from extensions import socketio
+import threading
+
+# File lock for hospital rating JSON writes (prevents race conditions)
+_hospital_json_lock = threading.Lock()
 
 appointment_bp = Blueprint('appointments', __name__)
 logger = logging.getLogger(__name__)
@@ -163,7 +167,7 @@ def cancel_appointment(appointment_id):
             return jsonify({'error': 'Unauthorized'}), 403
 
         apt.status = AppointmentStatus.CANCELLED
-        apt.updated_at = datetime.now()
+        apt.updated_at = datetime.now(timezone.utc)
         db.session.commit()
 
         # Publish realtime update
@@ -261,7 +265,7 @@ def rate_appointment(appointment_id):
             from models.hospital_matcher import get_hospital_matcher
             matcher = get_hospital_matcher()
             hospitals_list = matcher.hospitals
-            
+
             # Compute true average from all rated appointments for this hospital
             rated_apts = Appointment.query.filter(
                 Appointment.hospital_id == apt.hospital_id,
@@ -273,16 +277,17 @@ def rate_appointment(appointment_id):
             else:
                 true_avg = float(rating)
 
-            # Find hospital in JSON and update
+            # Find hospital in JSON and update — use lock to prevent race conditions
             for h in hospitals_list:
                 if str(h.get('id')) == str(apt.hospital_id):
                     h['rating'] = true_avg
                     h['review_count'] = len(rated_apts)
-                    
-                    # Save back to file
-                    with open(matcher.hospitals_db_path, 'w', encoding='utf-8') as fh:
-                        json.dump({'hospitals': hospitals_list}, fh, indent=2)
-                    
+
+                    # Thread-safe file write
+                    with _hospital_json_lock:
+                        with open(matcher.hospitals_db_path, 'w', encoding='utf-8') as fh:
+                            json.dump({'hospitals': hospitals_list}, fh, indent=2)
+
                     logger.info(
                         f"Updated hospital {apt.hospital_id} rating to {true_avg} "
                         f"({len(rated_apts)} reviews) in JSON"

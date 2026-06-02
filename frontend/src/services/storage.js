@@ -1,67 +1,103 @@
+/**
+ * storageService — Hardened local storage helpers for MediConnect.
+ *
+ * Security notes:
+ *  - Auth tokens are stored in sessionStorage (cleared when tab closes, not XSS-persistent like localStorage)
+ *  - Sensitive health data is NOT stored in plain localStorage — use server-side APIs where possible
+ *  - All JSON.parse calls are wrapped in try/catch to prevent parse-error crashes
+ *  - On sign-out, ALL keys are wiped
+ */
+
+// Keys
+const KEYS = {
+  TOKEN: 'mc_token',
+  USER: 'mc_user',
+  LANGUAGE: 'mc_language',
+  SEARCH_HISTORY: 'mc_search_history',
+  FAVORITES: 'mc_favorites',
+  HEALTH_PROFILE: 'mc_health_profile',
+  APPOINTMENTS: 'mc_appointments',
+};
+
+const safeParse = (raw) => {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 export const storageService = {
-  // Token management
-  getToken: () => localStorage.getItem('token'),
-  setToken: (token) => localStorage.setItem('token', token),
-  removeToken: () => localStorage.removeItem('token'),
+  // ── Token management (sessionStorage — cleared on tab/browser close) ────────
+  getToken: () => sessionStorage.getItem(KEYS.TOKEN),
+  setToken: (token) => sessionStorage.setItem(KEYS.TOKEN, token),
+  removeToken: () => sessionStorage.removeItem(KEYS.TOKEN),
 
-  // User management
-  getUser: () => {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
-  },
-  setUser: (user) => localStorage.setItem('user', JSON.stringify(user)),
-  removeUser: () => localStorage.removeItem('user'),
+  // ── User management (sessionStorage) ────────────────────────────────────────
+  getUser: () => safeParse(sessionStorage.getItem(KEYS.USER)),
+  setUser: (user) => sessionStorage.setItem(KEYS.USER, JSON.stringify(user)),
+  removeUser: () => sessionStorage.removeItem(KEYS.USER),
 
-  // Language preference
-  getLanguage: () => localStorage.getItem('language') || 'english',
-  setLanguage: (language) => localStorage.setItem('language', language),
+  // ── Language preference (localStorage — non-sensitive, cross-session UX) ────
+  getLanguage: () => localStorage.getItem(KEYS.LANGUAGE) || 'english',
+  setLanguage: (language) => localStorage.setItem(KEYS.LANGUAGE, language),
 
-  // Search history
-  getSearchHistory: () => {
-    const history = localStorage.getItem('searchHistory');
-    return history ? JSON.parse(history) : [];
-  },
+  // ── Search history (localStorage — non-sensitive symptom descriptions) ──────
+  getSearchHistory: () => safeParse(localStorage.getItem(KEYS.SEARCH_HISTORY)) || [],
   addToSearchHistory: (search) => {
     const history = storageService.getSearchHistory();
     history.unshift(search);
-    localStorage.setItem('searchHistory', JSON.stringify(history.slice(0, 10)));
+    localStorage.setItem(KEYS.SEARCH_HISTORY, JSON.stringify(history.slice(0, 10)));
   },
+  clearSearchHistory: () => localStorage.removeItem(KEYS.SEARCH_HISTORY),
 
-  // Favorites
-  getFavorites: () => {
-    const favorites = localStorage.getItem('favorites');
-    return favorites ? JSON.parse(favorites) : [];
-  },
+  // ── Favorites (localStorage — hospital IDs, non-sensitive) ──────────────────
+  getFavorites: () => safeParse(localStorage.getItem(KEYS.FAVORITES)) || [],
   addFavorite: (hospital) => {
     const favorites = storageService.getFavorites();
     if (!favorites.find(fav => fav.id === hospital.id)) {
       favorites.push(hospital);
-      localStorage.setItem('favorites', JSON.stringify(favorites));
+      localStorage.setItem(KEYS.FAVORITES, JSON.stringify(favorites));
     }
   },
   removeFavorite: (hospitalId) => {
     const favorites = storageService.getFavorites();
     const updated = favorites.filter(fav => fav.id !== hospitalId);
-    localStorage.setItem('favorites', JSON.stringify(updated));
+    localStorage.setItem(KEYS.FAVORITES, JSON.stringify(updated));
   },
+  clearFavorites: () => localStorage.removeItem(KEYS.FAVORITES),
 
-  // Health Profile
-  getHealthProfile: () => {
-    const profile = localStorage.getItem('healthProfile');
-    return profile ? JSON.parse(profile) : null;
-  },
+  // ── Health Profile (sessionStorage — contains PII, cleared on tab close) ────
+  getHealthProfile: () => safeParse(sessionStorage.getItem(KEYS.HEALTH_PROFILE)),
   setHealthProfile: (profile) => {
-    localStorage.setItem('healthProfile', JSON.stringify(profile));
+    sessionStorage.setItem(KEYS.HEALTH_PROFILE, JSON.stringify(profile));
   },
+  clearHealthProfile: () => sessionStorage.removeItem(KEYS.HEALTH_PROFILE),
 
-  // Appointments
-  getAppointments: () => {
-    const appointments = localStorage.getItem('appointments');
-    return appointments ? JSON.parse(appointments) : [];
-  },
+  // ── Appointments (sessionStorage — contains PII) ─────────────────────────────
+  getAppointments: () => safeParse(sessionStorage.getItem(KEYS.APPOINTMENTS)) || [],
   addAppointment: (appointment) => {
     const appointments = storageService.getAppointments();
     appointments.push(appointment);
-    localStorage.setItem('appointments', JSON.stringify(appointments));
+    sessionStorage.setItem(KEYS.APPOINTMENTS, JSON.stringify(appointments));
+  },
+  clearAppointments: () => sessionStorage.removeItem(KEYS.APPOINTMENTS),
+
+  // ── Nuclear clear — wipes ALL MediConnect data on sign-out ──────────────────
+  clearAll: () => {
+    // Clear sessionStorage keys
+    Object.values(KEYS).forEach(key => {
+      sessionStorage.removeItem(key);
+    });
+    // Clear only our localStorage keys (not other apps' data)
+    [KEYS.LANGUAGE, KEYS.SEARCH_HISTORY, KEYS.FAVORITES].forEach(key => {
+      localStorage.removeItem(key);
+    });
+    // Legacy key cleanup (in case old code stored under these names)
+    ['token', 'user', 'searchHistory', 'favorites', 'healthProfile', 'appointments'].forEach(key => {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    });
   },
 };

@@ -65,12 +65,10 @@ def get_emergency_hospitals():
         # Get matcher instance
         matcher = get_hospital_matcher()
         
-        # Get nearby hospitals
-        hospitals = matcher.get_nearby_hospitals(
-            latitude=latitude,
-            longitude=longitude,
-            radius=radius,
-            limit=limit
+        # Get nearby emergency hospitals
+        hospitals = matcher.find_emergency_hospitals(
+            user_location={'lat': latitude, 'lng': longitude},
+            max_results=limit
         )
         
         # Track emergency use

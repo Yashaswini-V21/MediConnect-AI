@@ -4,6 +4,7 @@ from models.user_model import db, User, SearchHistory, Favorite
 from utils.email_sender import email_sender
 from utils.analytics import analytics
 from utils.auth_middleware import require_auth, get_authenticated_user_id
+from utils.security import limiter
 from datetime import timedelta
 import re
 import os
@@ -35,21 +36,25 @@ def validate_password(password):
 # ============================================
 
 @auth_bp.route('/send-otp', methods=['POST'])
+@limiter.limit("3 per 10 minutes")
 def send_otp():
     """Send OTP to email for verification"""
     try:
-        data = request.get_json()
-        email = data.get('email')
-        
+        data = request.get_json() or {}
+        email = data.get('email', '').strip().lower()
+
         if not email:
             return jsonify({'success': False, 'message': 'Email is required'}), 400
-        
+
+        if len(email) > 120:
+            return jsonify({'success': False, 'message': 'Invalid email address'}), 400
+
         if not validate_email(email):
             return jsonify({'success': False, 'message': 'Invalid email format'}), 400
-        
+
         # Send OTP
         success, otp_dev = email_sender.send_otp(email)
-        
+
         if success:
             response = {
                 'success': True,
@@ -58,177 +63,196 @@ def send_otp():
             # Only include OTP in response in development mode — never in production
             if otp_dev and os.getenv('FLASK_ENV', 'development') == 'development':
                 response['otp_dev'] = otp_dev
-            
+
             logger.info(f"OTP sent to {email}")
             return jsonify(response), 200
         else:
-            return jsonify({'success': False, 'message': 'Failed to send OTP'}), 500
-            
+            return jsonify({'success': False, 'message': 'Too many OTP requests. Please wait before requesting another.'}), 429
+
     except Exception as e:
-        logger.error(f"Send OTP error: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(f"Send OTP error: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Failed to send OTP. Please try again.'}), 500
 
 @auth_bp.route('/verify-otp', methods=['POST'])
+@limiter.limit("10 per minute")
 def verify_otp():
     """Verify OTP for email"""
     try:
-        data = request.get_json()
-        email = data.get('email')
-        otp = data.get('otp')
-        
+        data = request.get_json() or {}
+        email = data.get('email', '').strip().lower()
+        otp = data.get('otp', '').strip()
+
         if not email or not otp:
             return jsonify({'success': False, 'message': 'Email and OTP are required'}), 400
-        
+
         # Verify OTP
         is_valid, message = email_sender.verify_otp(email, otp)
-        
+
         if is_valid:
             logger.info(f"OTP verified for {email}")
             return jsonify({'success': True, 'message': message}), 200
         else:
             logger.warning(f"OTP verification failed for {email}: {message}")
             return jsonify({'success': False, 'message': message}), 400
-            
+
     except Exception as e:
-        logger.error(f"Verify OTP error: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(f"Verify OTP error: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'OTP verification failed. Please try again.'}), 500
 
 # ============================================
 # AUTHENTICATION ROUTES (Updated with OTP)
 # ============================================
 
 @auth_bp.route('/signup', methods=['POST'])
+@limiter.limit("5 per hour")
 def signup():
     try:
-        data = request.get_json()
-        
+        data = request.get_json() or {}
+
         # Validate required fields
         required_fields = ['email', 'password', 'full_name', 'otp']
         for field in required_fields:
             if field not in data or not data[field]:
                 return jsonify({'success': False, 'message': f'{field} is required'}), 400
-        
+
+        email = data['email'].strip().lower()
+        full_name = data['full_name'].strip()
+
+        # Validate lengths
+        if len(email) > 120:
+            return jsonify({'success': False, 'message': 'Email address is too long'}), 400
+        if len(full_name) > 100:
+            return jsonify({'success': False, 'message': 'Full name is too long (max 100 characters)'}), 400
+        if len(data['password']) > 128:
+            return jsonify({'success': False, 'message': 'Password is too long'}), 400
+
         # Validate email format
-        if not validate_email(data['email']):
-            logger.warning(f"Invalid email format attempted: {data['email']}")
+        if not validate_email(email):
+            logger.warning(f"Invalid email format attempted: {email}")
             return jsonify({'success': False, 'message': 'Invalid email format'}), 400
-        
+
         # Verify OTP first (don't delete yet)
-        is_valid, otp_message = email_sender.verify_otp(data['email'], data['otp'], delete_after_verify=False)
+        is_valid, otp_message = email_sender.verify_otp(email, data['otp'], delete_after_verify=False)
         if not is_valid:
             return jsonify({'success': False, 'message': f'OTP verification failed: {otp_message}'}), 400
-        
+
         # Check if user already exists
-        if User.query.filter_by(email=data['email']).first():
-            logger.warning(f"Duplicate registration attempt: {data['email']}")
+        if User.query.filter_by(email=email).first():
+            logger.warning(f"Duplicate registration attempt: {email}")
             return jsonify({'success': False, 'message': 'Email already registered'}), 400
-        
+
         # Validate password
         is_valid, message = validate_password(data['password'])
         if not is_valid:
-            logger.warning(f"Weak password attempt for: {data['email']}")
             return jsonify({'success': False, 'message': message}), 400
-        
+
         # Create new user
         new_user = User(
-            email=data['email'],
-            full_name=data['full_name'],
+            email=email,
+            full_name=full_name,
             phone=data.get('phone'),
             preferred_language=data.get('preferred_language', 'en')
         )
         new_user.set_password(data['password'])
-        
+
         db.session.add(new_user)
         db.session.commit()
-        
+
         # Delete OTP after successful signup
-        email_sender.delete_otp(data['email'])
-        
+        email_sender.delete_otp(email)
+
         # Track new user registration
         analytics.track_new_user()
-        
+
         logger.info(f"New user registered: {new_user.email}")
-        
+
         # Create access token
         access_token = create_access_token(
-            identity=new_user.id,
-            expires_delta=timedelta(days=7)
+            identity=str(new_user.id),
+            expires_delta=timedelta(hours=24)
         )
-        
+
         return jsonify({
             'success': True,
             'message': 'User created successfully',
             'token': access_token,
             'user': new_user.to_dict()
         }), 201
-        
+
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Signup error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Signup error: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Registration failed. Please try again.'}), 500
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     try:
-        data = request.get_json()
-        
+        data = request.get_json() or {}
+
+        email = data.get('email', '').strip().lower()
+        otp = data.get('otp', '').strip()
+
         # Validate required fields
-        if not data.get('email') or not data.get('otp'):
+        if not email or not otp:
             return jsonify({'success': False, 'message': 'Email and OTP are required'}), 400
-        
+
+        if not validate_email(email):
+            return jsonify({'success': False, 'message': 'Invalid email format'}), 400
+
         # Verify OTP first (don't delete yet)
-        is_valid, otp_message = email_sender.verify_otp(data['email'], data['otp'], delete_after_verify=False)
+        is_valid, otp_message = email_sender.verify_otp(email, otp, delete_after_verify=False)
         if not is_valid:
             return jsonify({'success': False, 'message': f'OTP verification failed: {otp_message}'}), 400
-        
+
         # Find user
-        user = User.query.filter_by(email=data['email']).first()
-        
+        user = User.query.filter_by(email=email).first()
+
         if not user:
-            logger.warning(f"Failed login attempt for: {data.get('email')}")
-            return jsonify({'success': False, 'message': 'User not found'}), 401
-        
+            logger.warning(f"Login attempt for non-existent email: {email}")
+            return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+
         if not user.is_active:
             logger.warning(f"Inactive account login attempt: {user.email}")
             return jsonify({'error': 'Account is deactivated'}), 403
-        
+
         # Delete OTP after successful login
-        email_sender.delete_otp(data['email'])
-        
+        email_sender.delete_otp(email)
+
         logger.info(f"User logged in: {user.email}")
-        
-        # Create access token
+
+        # Create access token (24h expiry for security)
         access_token = create_access_token(
-            identity=user.id,
-            expires_delta=timedelta(days=7)
+            identity=str(user.id),
+            expires_delta=timedelta(hours=24)
         )
-        
+
         return jsonify({
             'success': True,
             'message': 'Login successful',
             'token': access_token,
             'user': user.to_dict()
         }), 200
-        
+
     except Exception as e:
-        logger.error(f"Login error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Login error: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Login failed. Please try again.'}), 500
 
 @auth_bp.route('/me', methods=['GET'])
 @require_auth()
 def get_current_user():
     try:
         user_id = get_authenticated_user_id()
-        user = User.query.get(user_id)
-        
+        user = db.session.get(User, user_id)
+
         if not user:
             return jsonify({'success': False, 'message': 'User not found'}), 404
-        
+
         return jsonify({'success': True, 'user': user.to_dict()}), 200
-        
+
     except Exception as e:
-        logger.error(f"Get current user error: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(f"Get current user error: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Failed to retrieve user profile.'}), 500
 
 
 @auth_bp.route('/firebase-sync', methods=['POST'])
@@ -293,54 +317,60 @@ def sync_firebase_profile():
 def get_profile():
     try:
         user_id = get_authenticated_user_id()
-        user = User.query.get(user_id)
-        
+        user = db.session.get(User, user_id)
+
         if not user:
             return jsonify({'success': False, 'message': 'User not found'}), 404
-        
+
         return jsonify({'success': True, 'user': user.to_dict()}), 200
-        
+
     except Exception as e:
-        logger.error(f"Get profile error: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(f"Get profile error: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Failed to retrieve profile.'}), 500
 
 @auth_bp.route('/profile', methods=['PUT'])
 @require_auth()
 def update_profile():
     try:
         user_id = get_authenticated_user_id()
-        user = User.query.get(user_id)
-        
+        user = db.session.get(User, user_id)
+
         if not user:
             return jsonify({'error': 'User not found'}), 404
-        
-        data = request.get_json()
-        
-        # Update allowed fields
+
+        data = request.get_json() or {}
+
+        # Update allowed fields with length validation
         if 'full_name' in data:
-            user.full_name = data['full_name']
+            name = str(data['full_name']).strip()
+            if len(name) > 100:
+                return jsonify({'error': 'Full name too long (max 100 characters)'}), 400
+            user.full_name = name
         if 'phone' in data:
-            user.phone = data['phone']
+            phone = str(data['phone']).strip()
+            if len(phone) > 15:
+                return jsonify({'error': 'Phone number too long'}), 400
+            user.phone = phone
         if 'blood_group' in data:
-            user.blood_group = data['blood_group']
+            user.blood_group = str(data['blood_group'])[:5]
         if 'emergency_contact' in data:
-            user.emergency_contact = data['emergency_contact']
+            user.emergency_contact = str(data['emergency_contact'])[:15]
         if 'preferred_language' in data:
-            user.preferred_language = data['preferred_language']
-        
+            user.preferred_language = str(data['preferred_language'])[:5]
+
         db.session.commit()
-        
+
         logger.info(f"Profile updated: {user.email}")
-        
+
         return jsonify({
             'message': 'Profile updated successfully',
             'user': user.to_dict()
         }), 200
-        
+
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Update profile error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Update profile error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to update profile. Please try again.'}), 500
 
 @auth_bp.route('/search-history', methods=['GET'])
 @require_auth()
@@ -470,36 +500,37 @@ def remove_favorite(favorite_id):
 
 @auth_bp.route('/change-password', methods=['POST'])
 @require_auth()
+@limiter.limit("5 per hour")
 def change_password():
     try:
         user_id = get_authenticated_user_id()
-        user = User.query.get(user_id)
-        
+        user = db.session.get(User, user_id)
+
         if not user:
             return jsonify({'error': 'User not found'}), 404
-        
-        data = request.get_json()
-        
+
+        data = request.get_json() or {}
+
         if not data.get('current_password') or not data.get('new_password'):
             return jsonify({'error': 'Current and new passwords are required'}), 400
-        
+
         if not user.check_password(data['current_password']):
             logger.warning(f"Incorrect password attempt for user: {user.email}")
             return jsonify({'error': 'Current password is incorrect'}), 401
-        
+
         # Validate new password
         is_valid, message = validate_password(data['new_password'])
         if not is_valid:
             return jsonify({'error': message}), 400
-        
+
         user.set_password(data['new_password'])
         db.session.commit()
-        
+
         logger.info(f"Password changed for user: {user.email}")
-        
+
         return jsonify({'message': 'Password changed successfully'}), 200
-        
+
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Change password error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Change password error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to change password. Please try again.'}), 500

@@ -46,9 +46,16 @@ app = Flask(__name__)
 
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY') or os.getenv('SECRET_KEY')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)  # Reduced from 7 days for security
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///mediconnect.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1 MB max request body
+
+# SQLAlchemy connection pool settings for production
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,     # Verify connections before use
+    'pool_recycle': 300,       # Recycle connections every 5 minutes
+}
 
 # Security headers
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -201,34 +208,44 @@ def health_check():
 
 @app.route('/api/analytics/stats', methods=['GET'])
 def get_analytics_stats():
-    """Get comprehensive analytics statistics - for Imagine Cup presentation"""
+    """Get comprehensive analytics statistics — requires admin token."""
+    # Protect analytics from unauthenticated access
+    admin_token = request.headers.get('X-Admin-Token', '')
+    expected = os.getenv('ADMIN_SECRET_TOKEN', '')
+    if not expected or admin_token != expected:
+        return jsonify({'error': 'Unauthorized'}), 401
+
     try:
         from utils.analytics import analytics
         stats = analytics.get_stats()
-        
         return jsonify({
             'success': True,
             'stats': stats
         }), 200
     except Exception as e:
-        logger.error(f"Error getting analytics: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting analytics: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to retrieve analytics data.'}), 500
 
 
 @app.route('/api/analytics/dashboard', methods=['GET'])
 def get_analytics_dashboard():
-    """Get simplified analytics for dashboard display"""
+    """Get simplified analytics for dashboard display — requires admin token."""
+    # Protect analytics from unauthenticated access
+    admin_token = request.headers.get('X-Admin-Token', '')
+    expected = os.getenv('ADMIN_SECRET_TOKEN', '')
+    if not expected or admin_token != expected:
+        return jsonify({'error': 'Unauthorized'}), 401
+
     try:
         from utils.analytics import analytics
         stats = analytics.get_dashboard_stats()
-        
         return jsonify({
             'success': True,
             'dashboard': stats
         }), 200
     except Exception as e:
-        logger.error(f"Error getting dashboard analytics: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting dashboard analytics: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to retrieve dashboard data.'}), 500
 
 
 # ============================================
@@ -295,8 +312,8 @@ def analyze_symptoms():
                 history_entry = SearchHistory(
                     user_id=user_id,
                     symptoms=symptoms_text,
-                    urgency_level=analysis_result['urgency'],
-                    specialties=','.join(analysis_result['specialties'])
+                    urgency_level=analysis_result.get('urgency_level', analysis_result.get('urgency', 'LOW')),
+                    specialties=','.join(analysis_result.get('recommended_specialties', analysis_result.get('specialties', [])))
                 )
                 db.session.add(history_entry)
                 db.session.commit()
@@ -708,8 +725,8 @@ def combined_search():
         analysis_result = symptom_analyzer.analyze(symptoms_text, language)
         
         # Step 2: Find hospitals based on analysis
-        specialties = analysis_result['specialties']
-        urgency = analysis_result['urgency']
+        specialties = analysis_result.get('recommended_specialties', analysis_result.get('specialties', ['General Medicine']))
+        urgency = analysis_result.get('urgency_level', analysis_result.get('urgency', 'MEDIUM'))
         
         hospitals = hospital_matcher.find_hospitals(
             specialties=specialties,
@@ -816,6 +833,26 @@ def method_not_allowed(error):
         'message': 'The HTTP method is not allowed for this endpoint',
         'status': 405
     }), 405
+
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle 413 Payload Too Large errors"""
+    return jsonify({
+        'error': 'Request too large',
+        'message': 'Request body exceeds the maximum allowed size (1MB)',
+        'status': 413
+    }), 413
+
+
+@app.errorhandler(429)
+def rate_limit_exceeded(error):
+    """Handle 429 Too Many Requests errors"""
+    return jsonify({
+        'error': 'Too many requests',
+        'message': 'Rate limit exceeded. Please slow down and try again later.',
+        'status': 429
+    }), 429
 
 
 # ============================================

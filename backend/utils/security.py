@@ -1,6 +1,8 @@
 import os
+import re
 import base64
 import hashlib
+import html
 from datetime import datetime, timezone
 from functools import wraps
 from flask import request, g, jsonify
@@ -140,7 +142,8 @@ def add_security_headers(response):
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: https://*.googleapis.com https://*.gstatic.com; "
         "connect-src 'self' https://*.googleapis.com https://api.groq.com "
-        "https://api.sarvam.ai https://identitytoolkit.googleapis.com; "
+        "https://api.sarvam.ai https://identitytoolkit.googleapis.com "
+        "https://securetoken.googleapis.com; "
         "frame-src 'none'; "
         "object-src 'none'; "
         "base-uri 'self';"
@@ -161,14 +164,74 @@ def add_security_headers(response):
 # ─────────────────────────────────────────────────────────────
 # PART 5: Input Validation Helpers
 # ─────────────────────────────────────────────────────────────
+
+# Max lengths for various input fields
+MAX_SYMPTOMS_LENGTH   = 2000
+MAX_TEXT_LENGTH       = 500
+MAX_NAME_LENGTH       = 100
+MAX_EMAIL_LENGTH      = 120
+MAX_REASON_LENGTH     = 500
+
+# Dangerous pattern detection (basic XSS / injection guard)
+_DANGEROUS_PATTERNS = re.compile(
+    r'(<\s*script|javascript:|on\w+\s*=|<\s*iframe|<\s*object|<\s*embed|'
+    r'UNION\s+SELECT|DROP\s+TABLE|INSERT\s+INTO|DELETE\s+FROM|'
+    r'--\s*$|;\s*DROP|xp_cmdshell)',
+    re.IGNORECASE
+)
+
+
+def sanitize_input(text: str, max_length: int = MAX_TEXT_LENGTH) -> str:
+    """
+    Sanitize a text input:
+      1. Strip leading/trailing whitespace
+      2. Escape HTML entities
+      3. Truncate to max_length
+      4. Reject obviously dangerous patterns (returns empty string)
+    """
+    if not isinstance(text, str):
+        return ''
+    text = text.strip()
+    if _DANGEROUS_PATTERNS.search(text):
+        _security_logger.warning(f"Dangerous pattern detected in input (len={len(text)})")
+        return ''
+    text = html.escape(text)
+    return text[:max_length]
+
+
+def validate_symptoms_input(symptoms: str) -> tuple[bool, str]:
+    """Validate symptoms text. Returns (is_valid, error_message)."""
+    if not symptoms or not symptoms.strip():
+        return False, 'Symptoms description is required'
+    if len(symptoms.strip()) < 3:
+        return False, 'Symptoms description is too short (minimum 3 characters)'
+    if len(symptoms) > MAX_SYMPTOMS_LENGTH:
+        return False, f'Symptoms description too long (maximum {MAX_SYMPTOMS_LENGTH} characters)'
+    return True, ''
+
+
+def validate_coordinate(lat, lng) -> tuple[bool, str]:
+    """Validate latitude/longitude coordinates."""
+    try:
+        lat = float(lat)
+        lng = float(lng)
+    except (TypeError, ValueError):
+        return False, 'Coordinates must be numbers'
+    if not (-90 <= lat <= 90):
+        return False, 'Latitude must be between -90 and 90'
+    if not (-180 <= lng <= 180):
+        return False, 'Longitude must be between -180 and 180'
+    return True, ''
+
+
 def validate_appointment_data(data: dict) -> list:
     """Return a list of validation error strings, empty if valid."""
     errors = []
     reason = data.get('reason', '')
     if not reason or len(reason.strip()) < 3:
         errors.append("Reason must be at least 3 characters")
-    if len(reason) > 500:
-        errors.append("Reason must be 500 characters or fewer")
+    if len(reason) > MAX_REASON_LENGTH:
+        errors.append(f"Reason must be {MAX_REASON_LENGTH} characters or fewer")
     if not data.get('hospital_id'):
         errors.append("hospital_id is required")
     return errors
@@ -178,7 +241,7 @@ def check_admin_token_security():
     """Warn loudly at startup if ADMIN_SECRET_TOKEN is insecure."""
     token = os.environ.get("ADMIN_SECRET_TOKEN", "")
     insecure_defaults = {"", "admin", "changeme", "admin-token-change-in-production",
-                         "your_admin_token_here", "CHANGE_ME"}
+                         "your_admin_token_here", "CHANGE_ME", "mediconnect-admin-dev-token"}
     if token in insecure_defaults:
         _security_logger.warning(
             "ADMIN_SECRET_TOKEN is not set or uses an insecure default value. "

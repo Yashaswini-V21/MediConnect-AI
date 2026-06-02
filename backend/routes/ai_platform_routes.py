@@ -86,18 +86,19 @@ def analyze_symptoms():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         symptoms = data.get('symptoms', '').strip()
         language = data.get('language', 'en')
-        
+
         if not symptoms:
-            return jsonify({'error': 'Symptoms required'}), 400
-        
+            return jsonify({'error': 'Symptoms description is required'}), 400
+        if len(symptoms) > 2000:
+            return jsonify({'error': 'Symptoms description too long (max 2000 characters)'}), 400
+
         start_time = time.time()
-        
-        # Use LangGraph diagnostic agent
+
+        # Use LangGraph diagnostic agent with rule-based fallback
         try:
-            # Try diagnostic agent first
             state = {
                 'symptom_text': symptoms,
                 'language': language,
@@ -105,20 +106,20 @@ def analyze_symptoms():
             }
             result = diagnostic_workflow.invoke(state)
             analysis = result
-        except:
-            # Fallback to rule-based provider
+        except Exception as agent_err:
+            logger.warning(f"Diagnostic agent unavailable, using rule-based fallback: {agent_err}")
             analysis = rule_provider.analyze_symptoms(symptoms)
-        
+
         latency = (time.time() - start_time) * 1000
-        
+
         return jsonify({
             'success': True,
             'analysis': analysis,
-            'latency_ms': latency
+            'latency_ms': round(latency, 2)
         }), 200
     except Exception as e:
-        logger.error(f"Symptom analysis error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Symptom analysis error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to analyze symptoms. Please try again.'}), 500
 
 
 @ai_platform_bp.route('/health/emergency-check', methods=['POST'])
@@ -130,21 +131,23 @@ def emergency_check():
     {"symptoms": "severe chest pain"}
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         symptoms = data.get('symptoms', '').strip()
-        
+
         if not symptoms:
-            return jsonify({'error': 'Symptoms required'}), 400
-        
+            return jsonify({'error': 'Symptoms description is required'}), 400
+        if len(symptoms) > 2000:
+            return jsonify({'error': 'Symptoms description too long (max 2000 characters)'}), 400
+
         # Quick emergency analysis
         analysis = rule_provider.analyze_symptoms(symptoms)
         is_emergency = analysis.get('urgency', 'MEDIUM') == 'HIGH'
-        
+
         if is_emergency:
-            guidance = "⚠️ EMERGENCY DETECTED - Call 108 immediately. " + analysis.get('description', '')
+            guidance = "⚠️ EMERGENCY DETECTED — Call 108 immediately. " + analysis.get('description', '')
         else:
-            guidance = analysis.get('description', 'Seek medical attention.')
-        
+            guidance = analysis.get('description', 'Seek medical attention if symptoms worsen.')
+
         return jsonify({
             'success': True,
             'is_emergency': is_emergency,
@@ -153,8 +156,8 @@ def emergency_check():
             'specialties': analysis.get('specialties', [])
         }), 200
     except Exception as e:
-        logger.error(f"Emergency check error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Emergency check error: {e}", exc_info=True)
+        return jsonify({'error': 'Emergency check failed. Please try again.'}), 500
 
 
 # ===== VOICE ENDPOINTS =====
@@ -170,15 +173,15 @@ def start_voice():
     try:
         data = request.get_json() or {}
         language = data.get('language', 'en-US')
-        
+
         return jsonify({
             'success': True,
             'message': 'Voice input ready',
             'language': language
         }), 200
     except Exception as e:
-        logger.error(f"Voice start error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Voice start error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to initialize voice input.'}), 500
 
 
 @ai_platform_bp.route('/voice/stop', methods=['POST'])
@@ -194,8 +197,8 @@ def stop_voice():
             'message': 'Voice input stopped'
         }), 200
     except Exception as e:
-        logger.error(f"Voice stop error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Voice stop error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to stop voice input.'}), 500
 
 
 @ai_platform_bp.route('/voice/speak', methods=['POST'])
@@ -210,13 +213,15 @@ def speak_response():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         text = data.get('text', '').strip()
         language = data.get('language', 'en-US')
-        
+
         if not text:
-            return jsonify({'error': 'Text required'}), 400
-        
+            return jsonify({'error': 'Text is required'}), 400
+        if len(text) > 2000:
+            return jsonify({'error': 'Text too long (max 2000 characters)'}), 400
+
         return jsonify({
             'success': True,
             'message': 'Speech started',
@@ -224,8 +229,8 @@ def speak_response():
             'language': language
         }), 200
     except Exception as e:
-        logger.error(f"Speak error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Speak error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to process speech request.'}), 500
 
 
 # ===== ROUTING ENDPOINTS =====
@@ -243,29 +248,38 @@ def find_hospitals():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         user_lat = data.get('user_lat')
         user_lng = data.get('user_lng')
         urgency = data.get('urgency', 'MEDIUM')
-        
+
         if user_lat is None or user_lng is None:
-            return jsonify({'error': 'Location required'}), 400
-        
+            return jsonify({'error': 'Location (user_lat, user_lng) is required'}), 400
+
+        if urgency not in ('HIGH', 'MEDIUM', 'LOW'):
+            return jsonify({'error': 'urgency must be HIGH, MEDIUM, or LOW'}), 400
+
+        try:
+            user_lat = float(user_lat)
+            user_lng = float(user_lng)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'user_lat and user_lng must be numeric'}), 400
+
         # Use hospital matcher
         hospitals = hospital_matcher.find_hospitals(
             specialties=['Emergency'],
             user_location={'lat': user_lat, 'lng': user_lng},
             urgency=urgency
         )
-        
+
         return jsonify({
             'success': True,
             'hospitals': hospitals[:5],  # Top 5
             'count': len(hospitals)
         }), 200
     except Exception as e:
-        logger.error(f"Hospital search error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Hospital search error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to search hospitals. Please try again.'}), 500
 
 
 @ai_platform_bp.route('/emergency/route', methods=['POST'])
@@ -281,21 +295,27 @@ def get_route():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         user_lat = data.get('user_lat')
         user_lng = data.get('user_lng')
         hospital_id = data.get('hospital_id')
-        
-        if not all([user_lat, user_lng, hospital_id]):
-            return jsonify({'error': 'Required fields missing'}), 400
-        
+
+        if user_lat is None or user_lng is None or not hospital_id:
+            return jsonify({'error': 'user_lat, user_lng, and hospital_id are required'}), 400
+
+        try:
+            user_lat = float(user_lat)
+            user_lng = float(user_lng)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'user_lat and user_lng must be numeric'}), 400
+
         mode = data.get('mode', 'ambulance')
         result = platform.get_route_to_hospital(user_lat, user_lng, hospital_id, mode)
-        
-        return jsonify(result), 200 if result['success'] else 400
+
+        return jsonify(result), 200 if result.get('success') else 400
     except Exception as e:
-        logger.error(f"Route error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Route error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to calculate route. Please try again.'}), 500
 
 
 # ===== ANALYTICS ENDPOINTS =====
@@ -307,8 +327,8 @@ def get_dashboard():
         dashboard = platform.get_reliability_dashboard()
         return jsonify(dashboard), 200
     except Exception as e:
-        logger.error(f"Dashboard error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Dashboard error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to retrieve dashboard data.'}), 500
 
 
 @ai_platform_bp.route('/analytics/metrics', methods=['GET'])
@@ -319,8 +339,8 @@ def get_metrics():
         metrics_data = platform.get_daily_metrics(date)
         return jsonify(metrics_data), 200
     except Exception as e:
-        logger.error(f"Metrics error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Metrics error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to retrieve metrics data.'}), 500
 
 
 # ===== HEALTH CHECK =====
@@ -332,5 +352,5 @@ def health_check():
         health = platform.health_check()
         return jsonify(health), 200
     except Exception as e:
-        logger.error(f"Health check error: {e}")
-        return jsonify({'error': str(e), 'status': 'unhealthy'}), 500
+        logger.error(f"Health check error: {e}", exc_info=True)
+        return jsonify({'error': 'Health check failed.', 'status': 'unhealthy'}), 500
