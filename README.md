@@ -26,15 +26,12 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev)
 &nbsp;
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=flat&logo=flask)](https://flask.palletsprojects.com)
-&nbsp;
-[![Vercel](https://img.shields.io/badge/Frontend-Vercel-000?style=flat&logo=vercel)](https://mediconnect-ai-nu.vercel.app)
+
 
 <br/>
 
 <!-- ═══════════════  CTA ROW  ═══════════════ -->
 
-[**🚀 Live Demo**](https://mediconnect-ai-nu.vercel.app)
-&emsp;|&emsp;
 [**📡 API Reference**](#-api-reference)
 &emsp;|&emsp;
 [**⚡ Quick Start**](#-quick-start)
@@ -545,7 +542,7 @@ cd frontend && npm run build
 
 **MediConnect AI** &nbsp;·&nbsp; IBM SkillBuild × Edunet Foundation AIML Internship Capstone
 
-Built with ❤️ in India &nbsp;·&nbsp; [GitHub](https://github.com/Yashaswini-V21/MediConnect-AI) &nbsp;·&nbsp; [Live Demo](https://mediconnect-ai-nu.vercel.app)
+Built with ❤️ in India &nbsp;·&nbsp; [GitHub](https://github.com/Yashaswini-V21/MediConnect-AI) 
 
 <br/>
 
